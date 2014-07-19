@@ -9,6 +9,8 @@ the client has yet to see the light of day.
 The server part started from the code of the various
 ring-jetty9-adapters existing.
 
+The API is still subject to changes.
+
 <!-- ## Documentation -->
 
 <!-- [codox generated documentation](http://mpenet.github.com/jet/#docs). -->
@@ -18,6 +20,50 @@ ring-jetty9-adapters existing.
 jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 
 Add this to your dependencies:
+
+## Example
+
+Here we have the equivalent of a call to run-jetty, with the first
+param as your main app ring handler (coming from whatever routing lib
+you might use).
+
+In the options the `:websockets` value takes a map of path to
+handlers.
+
+The websocket handlers receive a map that hold 3 core.async channels
+and the underlying WebSocketAdapter instance for potential advanced uses.
+
+* `ctrl-ch` will receive status messages such as `[::connect this]`
+`[::error e]` `[::close reason]`
+
+* `recv-ch` will receive content sent by this connected client
+
+* `send-ch` will allow you to push content to this connected client
+
+```clojure
+(run some-ring-handler
+  {:port 8013
+   :websockets {"/foo/"
+                (fn [{:keys [recv-ch send-ch ctrl-ch ws]
+                      :as opts}]
+                  (async/go
+                    (loop []
+                      (when-let [x (async/<! ctrl-ch)]
+                        (println :ctrl x ctrl-ch)
+                        (recur))))
+                  (async/go
+                    (loop []
+                      (when-let [x (async/<! recv-ch)]
+                        (println :recv x recv-ch)
+                        (recur))))
+
+                  (future (dotimes [i 3]
+                            (async/>!! send-ch (str "send " i))
+                            (Thread/sleep 1000)))
+
+                  ;; (close! ws)
+                  )}})
+```
 
 ```clojure
 [cc.qbits/jet "0.1.0-SNAPSHOT"]
