@@ -10,9 +10,9 @@
                   :exclusions [javax.servlet/servlet-api]]
                  [ring/ring-servlet "1.2.1"
                   :exclusions [javax.servlet/servlet-api]]
-                 [org.eclipse.jetty/jetty-server "9.1.3.v20140225"]
-                 [org.eclipse.jetty.websocket/websocket-server "9.1.3.v20140225"]
-                 [org.eclipse.jetty.websocket/websocket-servlet "9.1.3.v20140225"]]
+                 [org.eclipse.jetty/jetty-server "9.2.1.v20140609"]
+                 [org.eclipse.jetty.websocket/websocket-server "9.2.1.v20140609"]
+                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.1.v20140609"]]
   :profiles {:1.4  {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5  {:dependencies [[org.clojure/clojure "1.5.0"]]}
              :1.6  {:dependencies [[org.clojure/clojure "1.6.0"]]}
