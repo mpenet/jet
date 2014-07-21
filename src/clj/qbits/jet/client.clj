@@ -8,9 +8,15 @@
     HttpClient
     HttpRequest)
    (org.eclipse.jetty.client.api
+    Request$FailureListener
     Response$CompleteListener
     Response$ContentListener
     Result)))
+
+(defn byte-buffer->string
+  [bb]
+  (String. (.array bb) "UTF-8"))
+
 
 (defrecord JetResponse [status headers body])
 
@@ -80,5 +86,18 @@
         (.send
          (reify Response$CompleteListener
            (onComplete [this result]
-             (async/put! ch (result->response result content-ch))))))
+                 (prn )
+    (prn )
+
+             (async/put! ch (if (.isSucceeded result)
+                              (result->response result content-ch)
+                              (.getRequestFailure result)))))))
     ch))
+
+
+(prn (-> (request {:url "http://google.com/1" :method :get})
+         async/<!!
+         ;; :body
+         ;; async/<!!
+         ;; byte-buffer->string
+         ))
