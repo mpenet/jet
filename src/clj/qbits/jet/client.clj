@@ -86,18 +86,16 @@
         (.send
          (reify Response$CompleteListener
            (onComplete [this result]
-                 (prn )
-    (prn )
-
              (async/put! ch (if (.isSucceeded result)
                               (result->response result content-ch)
                               (.getRequestFailure result)))))))
     ch))
 
 
-(prn (-> (request {:url "http://google.com/1" :method :get})
-         async/<!!
-         ;; :body
-         ;; async/<!!
-         ;; byte-buffer->string
-         ))
+(comment
+  (prn (-> (request {:url "http://google.com/1" :method :get})
+          async/<!!
+          ;; :body
+          ;; async/<!!
+          ;; byte-buffer->string
+          )))
