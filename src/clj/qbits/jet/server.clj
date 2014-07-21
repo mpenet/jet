@@ -110,154 +110,154 @@ Derived from ring.adapter.jetty"
             (when-let [x (async/<! out)]
               (send! this x)
               (recur)))))
-        (onWebSocketError [^Throwable e]
-                          (async/put! ctrl [:error e])
-                          (close-chans! in out ctrl))
-        (onWebSocketClose [statusCode ^String reason]
-                          (proxy-super onWebSocketClose statusCode reason)
-                          (async/put! ctrl [::close reason])
-                          (close-chans! in out ctrl))
-        (onWebSocketText [^String message]
-          (async/put! in message))
-        (onWebSocketBinary [^bytes payload offset len]
-          (async/put! in (WebSocketBinaryFrame. payload offset len))))))
+      (onWebSocketError [^Throwable e]
+        (async/put! ctrl [:error e])
+        (close-chans! in out ctrl))
+      (onWebSocketClose [statusCode ^String reason]
+        (proxy-super onWebSocketClose statusCode reason)
+        (async/put! ctrl [::close reason])
+        (close-chans! in out ctrl))
+      (onWebSocketText [^String message]
+        (async/put! in message))
+      (onWebSocketBinary [^bytes payload offset len]
+        (async/put! in (WebSocketBinaryFrame. payload offset len))))))
 
-  (defn- reify-ws-creator
-    [handler]
-    (reify WebSocketCreator
-      (createWebSocket [this _ _]
-        (proxy-ws-adapter handler))))
+(defn- reify-ws-creator
+  [handler]
+  (reify WebSocketCreator
+    (createWebSocket [this _ _]
+      (proxy-ws-adapter handler))))
 
-  (defprotocol RequestMapDecoder
-    (build-request-map [r]))
+(defprotocol RequestMapDecoder
+  (build-request-map [r]))
 
-  (extend-protocol RequestMapDecoder
-    HttpServletRequest
-    (build-request-map [request]
-      (servlet/build-request-map request))
+(extend-protocol RequestMapDecoder
+  HttpServletRequest
+  (build-request-map [request]
+    (servlet/build-request-map request))
 
-    UpgradeRequest
-    (build-request-map [request]
-      {:uri (.getRequestURI request)
-       :query-string (.getQueryString request)
-       :origin (.getOrigin request)
-       :host (.getHost request)
-       :request-method (-> request .getMethod string/lower-case keyword)
-       :headers (reduce(fn [m [k v]]
-                         (assoc m (string/lower-case k) (string/join "," v)))
-                       {}
-                       (.getHeaders request))}))
+  UpgradeRequest
+  (build-request-map [request]
+    {:uri (.getRequestURI request)
+     :query-string (.getQueryString request)
+     :origin (.getOrigin request)
+     :host (.getHost request)
+     :request-method (-> request .getMethod string/lower-case keyword)
+     :headers (reduce(fn [m [k v]]
+                       (assoc m (string/lower-case k) (string/join "," v)))
+                     {}
+                     (.getHeaders request))}))
 
-  (defn- proxy-ws-handler
-    "Returns a Jetty websocket handler"
-    [handlers {:as options
-               :keys [ws-max-idle-time]
-               :or {ws-max-idle-time 500000}}]
-    (proxy [WebSocketHandler] []
-      (configure [^WebSocketServletFactory factory]
-        (-> (.getPolicy factory)
-            (.setIdleTimeout ws-max-idle-time))
-        (.setCreator factory (reify-ws-creator handlers)))))
+(defn- proxy-ws-handler
+  "Returns a Jetty websocket handler"
+  [handlers {:as options
+             :keys [ws-max-idle-time]
+             :or {ws-max-idle-time 500000}}]
+  (proxy [WebSocketHandler] []
+    (configure [^WebSocketServletFactory factory]
+      (-> (.getPolicy factory)
+          (.setIdleTimeout ws-max-idle-time))
+      (.setCreator factory (reify-ws-creator handlers)))))
 
-  (defn- proxy-handler
-    "Returns an Jetty Handler implementation for the given Ring handler."
-    [handler]
-    (proxy [AbstractHandler] []
-      (handle [_ ^Request base-request request response]
-        (let [request-map (build-request-map request)
-              response-map (handler request-map)]
-          (when response-map
-            (servlet/update-servlet-response response response-map)
-            (.setHandled base-request true))))))
+(defn- proxy-handler
+  "Returns an Jetty Handler implementation for the given Ring handler."
+  [handler]
+  (proxy [AbstractHandler] []
+    (handle [_ ^Request base-request request response]
+      (let [request-map (build-request-map request)
+            response-map (handler request-map)]
+        (when response-map
+          (servlet/update-servlet-response response response-map)
+          (.setHandled base-request true))))))
 
-  (defn- http-config
-    [{:as options
-      :keys [ssl-port secure-scheme output-buffer-size request-header-size
-             response-header-size send-server-version? send-date-header?
-             header-cache-size]
-      :or {ssl-port 443
-           secure-scheme "https"
-           output-buffer-size 32768
-           request-header-size 8192
-           response-header-size 8192
-           send-server-version? true
-           send-date-header? false
-           header-cache-size 512}}]
-    "Creates jetty http configurator"
-    (doto (HttpConfiguration.)
-      (.setSecureScheme secure-scheme)
-      (.setSecurePort ssl-port)
-      (.setOutputBufferSize output-buffer-size)
-      (.setRequestHeaderSize request-header-size)
-      (.setResponseHeaderSize response-header-size)
-      (.setSendServerVersion send-server-version?)
-      (.setSendDateHeader send-date-header?)
-      (.setHeaderCacheSize header-cache-size)))
+(defn- http-config
+  [{:as options
+    :keys [ssl-port secure-scheme output-buffer-size request-header-size
+           response-header-size send-server-version? send-date-header?
+           header-cache-size]
+    :or {ssl-port 443
+         secure-scheme "https"
+         output-buffer-size 32768
+         request-header-size 8192
+         response-header-size 8192
+         send-server-version? true
+         send-date-header? false
+         header-cache-size 512}}]
+  "Creates jetty http configurator"
+  (doto (HttpConfiguration.)
+    (.setSecureScheme secure-scheme)
+    (.setSecurePort ssl-port)
+    (.setOutputBufferSize output-buffer-size)
+    (.setRequestHeaderSize request-header-size)
+    (.setResponseHeaderSize response-header-size)
+    (.setSendServerVersion send-server-version?)
+    (.setSendDateHeader send-date-header?)
+    (.setHeaderCacheSize header-cache-size)))
 
-  (defn- ssl-context-factory
-    "Creates a new SslContextFactory instance from a map of options."
-    [{:as options
-      :keys [keystore keystore-type key-password client-auth
-             truststore trust-password truststore-type]}]
-    (let [context (SslContextFactory.)]
-      (if (string? keystore)
-        (.setKeyStorePath context keystore)
-        (.setKeyStore context ^java.security.KeyStore keystore))
-      (.setKeyStorePassword context key-password)
-      (when keystore-type
-        (.setKeyStoreType context keystore-type))
-      (when truststore
-        (.setTrustStore context ^java.security.KeyStore truststore))
-      (when trust-password
-        (.setTrustStorePassword context trust-password))
-      (when truststore-type
-        (.setTrustStoreType context truststore-type))
-      (case client-auth
-        :need (.setNeedClientAuth context true)
-        :want (.setWantClientAuth context true)
-        nil)
-      context))
+(defn- ssl-context-factory
+  "Creates a new SslContextFactory instance from a map of options."
+  [{:as options
+    :keys [keystore keystore-type key-password client-auth
+           truststore trust-password truststore-type]}]
+  (let [context (SslContextFactory.)]
+    (if (string? keystore)
+      (.setKeyStorePath context keystore)
+      (.setKeyStore context ^java.security.KeyStore keystore))
+    (.setKeyStorePassword context key-password)
+    (when keystore-type
+      (.setKeyStoreType context keystore-type))
+    (when truststore
+      (.setTrustStore context ^java.security.KeyStore truststore))
+    (when trust-password
+      (.setTrustStorePassword context trust-password))
+    (when truststore-type
+      (.setTrustStoreType context truststore-type))
+    (case client-auth
+      :need (.setNeedClientAuth context true)
+      :want (.setWantClientAuth context true)
+      nil)
+    context))
 
-  (defn- create-server
-    "Construct a Jetty Server instance."
-    [{:as options
-      :keys [port max-threads daemon? max-idle-time host ssl? ssl-port]
-      :or {port 80
-           max-threads 50
-           daemon? false
-           max-idle-time 200000
-           ssl? false}}]
-    (let [pool (doto (QueuedThreadPool. (int max-threads))
-                 (.setDaemon daemon?))
-          server (doto (Server. pool)
-                   (.addBean (ScheduledExecutorScheduler.)))
+(defn- create-server
+  "Construct a Jetty Server instance."
+  [{:as options
+    :keys [port max-threads daemon? max-idle-time host ssl? ssl-port]
+    :or {port 80
+         max-threads 50
+         daemon? false
+         max-idle-time 200000
+         ssl? false}}]
+  (let [pool (doto (QueuedThreadPool. (int max-threads))
+               (.setDaemon daemon?))
+        server (doto (Server. pool)
+                 (.addBean (ScheduledExecutorScheduler.)))
 
-          http-configuration (http-config options)
-          http-connector (doto (ServerConnector.
-                                ^Server server
-                                (into-array ConnectionFactory [(HttpConnectionFactory. http-configuration)]))
-                           (.setPort port)
-                           (.setHost host)
-                           (.setIdleTimeout max-idle-time))
+        http-configuration (http-config options)
+        http-connector (doto (ServerConnector.
+                              ^Server server
+                              (into-array ConnectionFactory [(HttpConnectionFactory. http-configuration)]))
+                         (.setPort port)
+                         (.setHost host)
+                         (.setIdleTimeout max-idle-time))
 
-          https-connector (when (or ssl? ssl-port)
-                            (doto (ServerConnector.
-                                   ^Server server
-                                   (ssl-context-factory options)
-                                   (into-array ConnectionFactory [(HttpConnectionFactory. http-configuration)]))
-                              (.setPort ssl-port)
-                              (.setHost host)
-                              (.setIdleTimeout max-idle-time)))
+        https-connector (when (or ssl? ssl-port)
+                          (doto (ServerConnector.
+                                 ^Server server
+                                 (ssl-context-factory options)
+                                 (into-array ConnectionFactory [(HttpConnectionFactory. http-configuration)]))
+                            (.setPort ssl-port)
+                            (.setHost host)
+                            (.setIdleTimeout max-idle-time)))
 
-          connectors (if https-connector
-                       [http-connector https-connector]
-                       [http-connector])
-          connectors (into-array connectors)]
-      (.setConnectors server connectors)
-      server))
+        connectors (if https-connector
+                     [http-connector https-connector]
+                     [http-connector])
+        connectors (into-array connectors)]
+    (.setConnectors server connectors)
+    server))
 
-  (defn ^Server run
-    "Start a Jetty webserver to serve the given handler according to the
+(defn ^Server run
+  "Start a Jetty webserver to serve the given handler according to the
 supplied options:
 
 :port - the port to listen on (defaults to 80)
@@ -279,30 +279,29 @@ supplied options:
 :websockets - a map from context path to a map of handler fns:
 
  {\"/context\" {\"foo\" (fn [in out ctrl ws) ...)}}"
-    [ring-handler {:as options
-              :keys [max-threads websockets configurator join?]
-              :or {max-threads 50
-                   join? true}}]
-    (let [^Server s (create-server options)
-          ^QueuedThreadPool p (QueuedThreadPool. (int max-threads))
-          ring-app-handler (proxy-handler ring-handler)
-          ws-handlers (map (fn [[context-path handler]]
-                             (doto (ContextHandler.)
-                               (.setContextPath context-path)
-                               (.setHandler (proxy-ws-handler handler options))))
-                           websockets)
-          contexts (doto (HandlerList.)
-                     (.setHandlers
-                      (into-array Handler (reverse (conj ws-handlers ring-app-handler)))))]
-      (.setHandler s contexts)
-      (when-let [c configurator]
-        (c s))
-      (.start s)
-      (when join?
-        (.join s))
-      s))
+  [ring-handler {:as options
+                 :keys [max-threads websockets configurator join?]
+                 :or {max-threads 50
+                      join? true}}]
+  (let [^Server s (create-server options)
+        ^QueuedThreadPool p (QueuedThreadPool. (int max-threads))
+        ring-app-handler (proxy-handler ring-handler)
+        ws-handlers (map (fn [[context-path handler]]
+                           (doto (ContextHandler.)
+                             (.setContextPath context-path)
+                             (.setHandler (proxy-ws-handler handler options))))
+                         websockets)
+        contexts (doto (HandlerList.)
+                   (.setHandlers
+                    (into-array Handler (reverse (conj ws-handlers ring-app-handler)))))]
+    (.setHandler s contexts)
+    (when-let [c configurator]
+      (c s))
+    (.start s)
+    (when join?
+      (.join s))
+    s))
 
-  ;; (use 'clojure.tools.logging)
 ;; (run nil {:port 8013
 ;;           :websockets {"/api/entries/realtime/"
 ;;                        (fn [{:keys [in out ctrl ws]
