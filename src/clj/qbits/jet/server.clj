@@ -97,30 +97,30 @@ Derived from ring.adapter.jetty"
 
 (defn- proxy-ws-adapter
   [handler]
-  (let [recv-ch (async/chan)
-        send-ch (async/chan)
-        ctrl-ch (async/chan)]
+  (let [in (async/chan)
+        out (async/chan)
+        ctrl (async/chan)]
     (proxy [WebSocketAdapter] []
       (onWebSocketConnect [^Session session]
         (proxy-super onWebSocketConnect session)
-        (async/put! ctrl-ch [::connect this])
+        (async/put! in [::connect this])
         (async/go
           (loop []
-            (when-let [x (async/<! send-ch)]
+            (when-let [x (async/<! out)]
               (send! this x)
               (recur))))
-          (handler {:recv-ch recv-ch :send-ch send-ch :ctrl-ch ctrl-ch :ws this}))
+          (handler {:in in :out out :ctrl ctrl :ws this}))
         (onWebSocketError [^Throwable e]
-                          (async/put! ctrl-ch [:error e])
-                          (close-chans! recv-ch send-ch ctrl-ch))
+                          (async/put! in [:error e])
+                          (close-chans! in out ctrl))
         (onWebSocketText [^String message]
-                         (async/put! recv-ch message))
+                         (async/put! in message))
         (onWebSocketClose [statusCode ^String reason]
                           (proxy-super onWebSocketClose statusCode reason)
-                          (async/put! ctrl-ch [::close reason])
-                          (close-chans! recv-ch send-ch ctrl-ch))
+                          (async/put! ctrl [::close reason])
+                          (close-chans! in out ctrl))
         (onWebSocketBinary [^bytes payload offset len]
-                           (async/put! recv-ch (WebSocketBinaryFrame. payload offset len))))))
+                           (async/put! in (WebSocketBinaryFrame. payload offset len))))))
 
   (defn- reify-ws-creator
     [handler]
@@ -278,7 +278,7 @@ supplied options:
 :client-auth - SSL client certificate authenticate, may be set to :need, :want or :none (defaults to :none)
 :websockets - a map from context path to a map of handler fns:
 
- {\"/context\" {\"foo\" (fn [recv-ch send-ch ctrl-ch ws) ...)}}"
+ {\"/context\" {\"foo\" (fn [in out ctrl ws) ...)}}"
     [ring-handler {:as options
               :keys [max-threads websockets configurator join?]
               :or {max-threads 50
@@ -305,21 +305,21 @@ supplied options:
   ;; (use 'clojure.tools.logging)
 (comment (run nil {:port 8013
            :websockets {"/api/entries/realtime/"
-                        (fn [{:keys [recv-ch send-ch ctrl-ch ws]
+                        (fn [{:keys [in out ctrl ws]
                               :as opts}]
                           (async/go
                             (loop []
-                              (when-let [x (async/<! ctrl-ch)]
-                                (println :ctrl x ctrl-ch)
+                              (when-let [x (async/<! in)]
+                                (println :ctrl x ctrl)
                                 (recur))))
                           (async/go
                             (loop []
-                              (when-let [x (async/<! recv-ch)]
-                                (println :recv x recv-ch)
+                              (when-let [x (async/<! in)]
+                                (println :recv x in)
                                 (recur))))
 
                           (future (dotimes [i 3]
-                                    (async/>!! send-ch (str "send " i))
+                                    (async/>!! out (str "send " i))
                                     (Thread/sleep 1000)))
 
                           ;; (close! ws)

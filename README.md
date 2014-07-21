@@ -33,32 +33,32 @@ handlers.
 The websocket handlers receive a map that hold 3 core.async channels
 and the underlying WebSocketAdapter instance for potential advanced uses.
 
-* `ctrl-ch` will receive status messages such as `[::connect this]`
+* `ctrl` will receive status messages such as `[::connect this]`
 `[::error e]` `[::close reason]`
 
-* `recv-ch` will receive content sent by this connected client
+* `in` will receive content sent by this connected client
 
-* `send-ch` will allow you to push content to this connected client
+* `out` will allow you to push content to this connected client
 
 ```clojure
 (run some-ring-handler
   {:port 8013
    :websockets {"/foo/"
-                (fn [{:keys [recv-ch send-ch ctrl-ch ws]
+                (fn [{:keys [in out ctrl ws]
                       :as opts}]
                   (async/go
                     (loop []
-                      (when-let [x (async/<! ctrl-ch)]
-                        (println :ctrl x ctrl-ch)
+                      (when-let [x (async/<! ctrl)]
+                        (println :ctrl x ctrl)
                         (recur))))
                   (async/go
                     (loop []
-                      (when-let [x (async/<! recv-ch)]
-                        (println :recv x recv-ch)
+                      (when-let [x (async/<! in)]
+                        (println :recv x in)
                         (recur))))
 
                   (future (dotimes [i 3]
-                            (async/>!! send-ch (str "send " i))
+                            (async/>!! out (str "send " i))
                             (Thread/sleep 1000)))
 
                   ;; (close! ws)
