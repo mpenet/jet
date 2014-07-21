@@ -100,11 +100,11 @@ Derived from ring.adapter.jetty"
   (let [in (async/chan)
         out (async/chan)
         ctrl (async/chan)]
-    (handler {:in in :out out :ctrl ctrl :ws this})
     (proxy [WebSocketAdapter] []
       (onWebSocketConnect [^Session session]
         (proxy-super onWebSocketConnect session)
         (async/put! ctrl [::connect this])
+        (handler {:in in :out out :ctrl ctrl :ws this})
         (async/go
           (loop []
             (when-let [x (async/<! out)]
@@ -118,10 +118,9 @@ Derived from ring.adapter.jetty"
                           (async/put! ctrl [::close reason])
                           (close-chans! in out ctrl))
         (onWebSocketText [^String message]
-                         (async/put! in message))
-
+          (async/put! in message))
         (onWebSocketBinary [^bytes payload offset len]
-                           (async/put! in (WebSocketBinaryFrame. payload offset len))))))
+          (async/put! in (WebSocketBinaryFrame. payload offset len))))))
 
   (defn- reify-ws-creator
     [handler]
