@@ -100,25 +100,26 @@ Derived from ring.adapter.jetty"
   (let [in (async/chan)
         out (async/chan)
         ctrl (async/chan)]
+    (handler {:in in :out out :ctrl ctrl :ws this})
     (proxy [WebSocketAdapter] []
       (onWebSocketConnect [^Session session]
         (proxy-super onWebSocketConnect session)
-        (async/put! in [::connect this])
+        (async/put! ctrl [::connect this])
         (async/go
           (loop []
             (when-let [x (async/<! out)]
               (send! this x)
-              (recur))))
-          (handler {:in in :out out :ctrl ctrl :ws this}))
+              (recur)))))
         (onWebSocketError [^Throwable e]
-                          (async/put! in [:error e])
+                          (async/put! ctrl [:error e])
                           (close-chans! in out ctrl))
-        (onWebSocketText [^String message]
-                         (async/put! in message))
         (onWebSocketClose [statusCode ^String reason]
                           (proxy-super onWebSocketClose statusCode reason)
                           (async/put! ctrl [::close reason])
                           (close-chans! in out ctrl))
+        (onWebSocketText [^String message]
+                         (async/put! in message))
+
         (onWebSocketBinary [^bytes payload offset len]
                            (async/put! in (WebSocketBinaryFrame. payload offset len))))))
 
@@ -303,25 +304,24 @@ supplied options:
       s))
 
   ;; (use 'clojure.tools.logging)
-(comment (run nil {:port 8013
-           :websockets {"/api/entries/realtime/"
-                        (fn [{:keys [in out ctrl ws]
-                              :as opts}]
-                          (async/go
-                            (loop []
-                              (when-let [x (async/<! in)]
-                                (println :ctrl x ctrl)
-                                (recur))))
-                          (async/go
-                            (loop []
-                              (when-let [x (async/<! in)]
-                                (println :recv x in)
-                                (recur))))
+;; (run nil {:port 8013
+;;           :websockets {"/api/entries/realtime/"
+;;                        (fn [{:keys [in out ctrl ws]
+;;                              :as opts}]
+;;                          (async/go
+;;                            (loop []
+;;                              (when-let [x (async/<! in)]
+;;                                (println :ctrl x ctrl)
+;;                                (recur))))
+;;                          (async/go
+;;                            (loop []
+;;                              (when-let [x (async/<! in)]
+;;                                (println :recv x in)
+;;                                (recur))))
 
-                          (future (dotimes [i 3]
-                                    (async/>!! out (str "send " i))
-                                    (Thread/sleep 1000)))
+;;                          (future (dotimes [i 3]
+;;                                    (async/>!! out (str "send " i))
+;;                                    (Thread/sleep 1000)))
 
-                          ;; (close! ws)
-                          )}})
- )
+;;                          ;; (close! ws)
+;;                          )}})
