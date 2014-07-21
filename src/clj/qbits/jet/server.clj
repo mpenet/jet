@@ -34,8 +34,8 @@ Derived from ring.adapter.jetty"
     HttpServletRequest
     HttpServletResponse)
    (org.eclipse.jetty.websocket.api
-    WebSocketAdapter
     WebSocketListener
+    RemoteEndpoint
     Session
     UpgradeRequest)
    (clojure.lang IFn)
@@ -50,36 +50,7 @@ Derived from ring.adapter.jetty"
   (idle-timeout! [this ms]))
 
 (defprotocol WebSocketSend
-  (-send! [x ws] "How to encode content sent to the WebSocket clients"))
-
-(extend-protocol WebSocketSend
-
-  (Class/forName "[B")
-  (-send! [ba ws]
-    (-send! (ByteBuffer/wrap ba) ws))
-
-  ByteBuffer
-  (-send! [bb ws]
-    (-> ws remote (.sendBytes ^ByteBuffer bb)))
-
-  String
-  (-send! [s ws]
-    (-> ws remote (.sendString ^String s)))
-
-  IFn
-  (-send! [f ws]
-    (-> ws remote f))
-
-  Object
-  (-send! [this ws]
-    (-> ws remote (.sendString (str this))))
-
-  ;; "nil" could PING?
-  ;; nil
-  ;; (-send! [this ws] ()
-
-  )
-
+  (-send! [x ^WebSocket ws] "How to encode content sent to the WebSocket clients"))
 
 (defrecord WebSocketBinaryFrame [payload offset len])
 
@@ -93,7 +64,8 @@ Derived from ring.adapter.jetty"
      ^ManyToManyChannel out
      ^ManyToManyChannel ctrl
      ^IFn handler
-     ^{:volatile-mutable true :tag Session} session]
+     ^{:volatile-mutable true :tag Session}
+     session]
 
   WebSocketListener
   (onWebSocketConnect [this s]
@@ -119,15 +91,45 @@ Derived from ring.adapter.jetty"
 
   WebSocketProtocol
   (remote [this]
-    (some-> this .-session .getRemote))
+    (when session
+      (.getRemote session)))
   (send! [this msg]
     (-send! msg this))
   (close! [this]
-    (-> this .-session .close))
+    (.close session))
   (remote-addr [this]
-    (-> this .-session .getRemoteAddress))
+    (.getRemoteAddress session))
   (idle-timeout! [this ms]
-    (-> this .-session (.setIdleTimeout ^long ms))))
+    (.setIdleTimeout session ^long ms)))
+
+(extend-protocol WebSocketSend
+
+  (Class/forName "[B")
+  (-send! [ba ws]
+    (-send! (ByteBuffer/wrap ba) ws))
+
+  ByteBuffer
+  (-send! [bb ws]
+    (-> ws ^RemoteEndpoint remote (.sendBytes ^ByteBuffer bb)))
+
+  String
+  (-send! [s ws]
+    (-> ws ^RemoteEndpoint remote (.sendString ^String s)))
+
+  IFn
+  (-send! [f ws]
+    (-> ws ^RemoteEndpoint remote f))
+
+  Object
+  (-send! [this ws]
+    (-> ws ^RemoteEndpoint remote (.sendString (str this))))
+
+  ;; "nil" could PING?
+  ;; nil
+  ;; (-send! [this ws] ()
+
+  )
+
 
 (defn- reify-ws-creator
   [handler]

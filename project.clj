@@ -25,5 +25,5 @@
   :source-paths ["src/clj"]
   :java-source-paths ["src/java"]
   ;; :javac-options ["-source" "1.6" "-target" "1.6" "-g"]
-  ;; :global-vars {*warn-on-reflection* true}
+  :global-vars {*warn-on-reflection* true}
   )
