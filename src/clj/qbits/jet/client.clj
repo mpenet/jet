@@ -1,5 +1,8 @@
 (ns qbits.jet.client
-  (:require [clojure.core.async :as async])
+  (:require
+   [clojure.core.async :as async]
+   [clojure.string :as string])
+
   (:import
    (org.eclipse.jetty.client
     HttpClient
@@ -9,13 +12,16 @@
     Response$ContentListener
     Result)))
 
+(defrecord JetResponse [status headers body])
+
 (defn result->response
   [result content-ch]
   (let [response (.getResponse result)]
-    {:body (async/<!! content-ch)
-     :headers (.getHeaders response)
-     :status (.getStatus response)}))
-
+    (JetResponse. (.getStatus response)
+                  (reduce (fn [m h] (assoc m (.getName h) (.getValue h)))
+                          {}
+                          (.getHeaders response))
+                  content-ch)))
 
 (defprotocol PRequest
   (encode-body [x]))
@@ -76,6 +82,3 @@
            (onComplete [this result]
              (async/put! ch (result->response result content-ch))))))
     ch))
-
-
-;; (prn (async/<!! (request {:url "http://google.com" :method :get})))
