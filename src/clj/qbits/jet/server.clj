@@ -43,11 +43,11 @@ Derived from ring.adapter.jetty"
    (clojure.core.async.impl.channels ManyToManyChannel)))
 
 (defprotocol PWebSocket
-  (send! [this msg])
-  (close! [this])
-  (remote ^RemoteEndpoint [this])
-  (remote-addr [this])
-  (idle-timeout! [this ms]))
+  (send! [this msg] "Send content to client connected to this WebSocket instance")
+  (close! [this] "Close active WebSocket")
+  (remote ^RemoteEndpoint [this] "Remote endpoint instance")
+  (remote-addr [this] "Address of remote client")
+  (idle-timeout! [this ms] "Set idle timeout on client"))
 
 (defprotocol WebSocketSend
   (-send! [x ^WebSocket ws] "How to encode content sent to the WebSocket clients"))
@@ -263,25 +263,37 @@ Derived from ring.adapter.jetty"
   "Start a Jetty webserver to serve the given handler according to the
 supplied options:
 
-:port - the port to listen on (defaults to 80)
-:host - the hostname to listen on
-:join? - blocks the thread until server ends (defaults to true)
-:daemon? - use daemon threads (defaults to false)
-:ssl? - allow connections over HTTPS
-:ssl-port - the SSL port to listen on (defaults to 443, implies :ssl?)
-:keystore - the keystore to use for SSL connections
-:keystore-type - the format of keystore
-:key-password - the password to the keystore
-:truststore - a truststore to use for SSL connections
-:truststore-type - the format of trust store
-:trust-password - the password to the truststore
-:max-threads - the maximum number of threads to use (default 50)
-:max-idle-time  - the maximum idle time in milliseconds for a connection (default 200000)
-:ws-max-idle-time  - the maximum idle time in milliseconds for a websocket connection (default 500000)
-:client-auth - SSL client certificate authenticate, may be set to :need, :want or :none (defaults to :none)
-:websockets - a map from context path to a map of handler fns:
 
- {\"/context\" {\"foo\" (fn [in out ctrl ws) ...)}}"
+* `:port` - the port to listen on (defaults to 80)
+* `:host` - the hostname to listen on
+* `:join?` - blocks the thread until server ends (defaults to true)
+* `:daemon?` - use daemon threads (defaults to false)
+* `:ssl?` - allow connections over HTTPS
+* `:ssl-port` - the SSL port to listen on (defaults to 443, implies :ssl?)
+* `:keystore` - the keystore to use for SSL connections
+* `:keystore-type` - the format of keystore
+* `:key-password` - the password to the keystore
+* `:truststore` - a truststore to use for SSL connections
+* `:truststore-type` - the format of trust store
+* `:trust-password` - the password to the truststore
+* `:max-threads` - the maximum number of threads to use (default 50)
+* `:max-idle-time`  - the maximum idle time in milliseconds for a connection (default 200000)
+* `:ws-max-idle-time`  - the maximum idle time in milliseconds for a websocket connection (default 500000)
+* `:client-auth` - SSL client certificate authenticate, may be set to :need, :want or :none (defaults to :none)
+* `:output-buffer-size` - (default 32768)
+* `:request-header-size` - (default 8192)
+* `:response-header-size` - (default 8192)
+* `:send-server-version?` - (default true)
+* `:send-date-header?` - (default false)
+* `:header-cache-size` - (default 512)
+* `:websockets` - a map from context path to a map of handler fns:
+
+     `{\"/context\" {\"foo\" (fn [{:keys [in out ctrl ws]}) ...)}}`
+
+    * `:in`: core.async chan that receives data sent by the client
+    * `:out`: core async chan you can use to send data to client
+    * `:ctrl`: core.asyn chan that received control messages such as: `[::connect this]`, `[::error e]`, `[::close reason]`
+"
   [ring-handler {:as options
                  :keys [max-threads websockets configurator join?]
                  :or {max-threads 50
@@ -312,7 +324,7 @@ supplied options:
 ;;                       :as opts}]
 ;;                   (async/go
 ;;                     (loop []
-;;                       (when-let [x (async/<! in)]
+;;                       (when-let [x (async/<! ctrl)]
 ;;                         (println :ctrl x ctrl)
 ;;                         (recur))))
 ;;                   (async/go
