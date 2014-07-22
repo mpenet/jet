@@ -42,7 +42,7 @@ Derived from ring.adapter.jetty"
    (java.nio ByteBuffer)
    (clojure.core.async.impl.channels ManyToManyChannel)))
 
-(defprotocol WebSocketProtocol
+(defprotocol PWebSocket
   (send! [this msg])
   (close! [this])
   (remote [this])
@@ -89,7 +89,7 @@ Derived from ring.adapter.jetty"
   (onWebSocketBinary [this payload offset len]
     (async/put! in (WebSocketBinaryFrame. payload offset len)))
 
-  WebSocketProtocol
+  PWebSocket
   (remote [this]
     (when session
       (.getRemote session)))
@@ -157,7 +157,7 @@ Derived from ring.adapter.jetty"
                      {}
                      (.getHeaders request))}))
 
-(defn- proxy-ws-handler
+(defn- make-ws-handler
   "Returns a Jetty websocket handler"
   [handlers {:as options
              :keys [ws-max-idle-time]
@@ -168,7 +168,7 @@ Derived from ring.adapter.jetty"
           (.setIdleTimeout ws-max-idle-time))
       (.setCreator factory (reify-ws-creator handlers)))))
 
-(defn- proxy-handler
+(defn- make-handler
   "Returns an Jetty Handler implementation for the given Ring handler."
   [handler]
   (proxy [AbstractHandler] []
@@ -203,7 +203,7 @@ Derived from ring.adapter.jetty"
     (.setSendDateHeader send-date-header?)
     (.setHeaderCacheSize header-cache-size)))
 
-(defn- ssl-context-factory
+(defn- ^SslContextFactory ssl-context-factory
   "Creates a new SslContextFactory instance from a map of options."
   [{:as options
     :keys [keystore keystore-type key-password client-auth
@@ -242,26 +242,23 @@ Derived from ring.adapter.jetty"
                  (.addBean (ScheduledExecutorScheduler.)))
 
         http-configuration (http-config options)
-        http-connector (doto (ServerConnector.
-                              ^Server server
-                              (into-array ConnectionFactory [(HttpConnectionFactory. http-configuration)]))
-                         (.setPort port)
-                         (.setHost host)
-                         (.setIdleTimeout max-idle-time))
 
-        https-connector (when (or ssl? ssl-port)
-                          (doto (ServerConnector.
-                                 ^Server server
-                                 (ssl-context-factory options)
-                                 (into-array ConnectionFactory [(HttpConnectionFactory. http-configuration)]))
-                            (.setPort ssl-port)
-                            (.setHost host)
-                            (.setIdleTimeout max-idle-time)))
+        ^"[Lorg.eclipse.jetty.server.ConnectionFactory;" connection-factories
+        (into-array ConnectionFactory [(HttpConnectionFactory. http-configuration)])
 
-        connectors (if https-connector
-                     [http-connector https-connector]
-                     [http-connector])
-        connectors (into-array connectors)]
+        connectors (-> []
+                       (conj (doto (ServerConnector. ^Server server connection-factories)
+                               (.setPort port)
+                               (.setHost host)
+                               (.setIdleTimeout max-idle-time)))
+                       (cond-> (or ssl? ssl-port)
+                               (conj (doto (ServerConnector. ^Server server
+                                                             (ssl-context-factory options)
+                                                             connection-factories)
+                                  (.setPort ssl-port)
+                                  (.setHost host)
+                                  (.setIdleTimeout max-idle-time))))
+                       (into-array))]
     (.setConnectors server connectors)
     server))
 
@@ -294,11 +291,11 @@ supplied options:
                       join? true}}]
   (let [^Server s (create-server options)
         ^QueuedThreadPool p (QueuedThreadPool. (int max-threads))
-        ring-app-handler (proxy-handler ring-handler)
+        ring-app-handler (make-handler ring-handler)
         ws-handlers (map (fn [[context-path handler]]
                            (doto (ContextHandler.)
                              (.setContextPath context-path)
-                             (.setHandler (proxy-ws-handler handler options))))
+                             (.setHandler (make-ws-handler handler options))))
                          websockets)
         contexts (doto (HandlerList.)
                    (.setHandlers
