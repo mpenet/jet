@@ -46,6 +46,7 @@ Derived from ring.adapter.jetty"
   (send! [this msg] "Send content to client connected to this WebSocket instance")
   (close! [this] "Close active WebSocket")
   (remote ^RemoteEndpoint [this] "Remote endpoint instance")
+  (session ^Session [this] "Session instance")
   (remote-addr [this] "Address of remote client")
   (idle-timeout! [this ms] "Set idle timeout on client"))
 
@@ -64,7 +65,7 @@ Derived from ring.adapter.jetty"
      ^ManyToManyChannel out
      ^ManyToManyChannel ctrl
      ^IFn handler
-     ^{:volatile-mutable true :tag Session} session]
+     ^Session ^:volatile-mutable  session]
 
   WebSocketListener
   (onWebSocketConnect [this s]
@@ -79,7 +80,7 @@ Derived from ring.adapter.jetty"
   (onWebSocketError [this e]
     (async/put! ctrl [:error e])
     (close-chans! in out ctrl))
-  (onWebSocketClose [this statusCode reason]
+  (onWebSocketClose [this code reason]
     (set! session nil)
     (async/put! ctrl [::close reason])
     (close-chans! in out ctrl))
@@ -92,6 +93,7 @@ Derived from ring.adapter.jetty"
   (remote [this]
     (when session
       (.getRemote session)))
+  (session [this] session)
   (send! [this msg]
     (-send! msg this))
   (close! [this]
@@ -142,17 +144,18 @@ Derived from ring.adapter.jetty"
   (build-request-map [request]
     (servlet/build-request-map request))
 
-  UpgradeRequest
-  (build-request-map [request]
-    {:uri (.getRequestURI request)
-     :query-string (.getQueryString request)
-     :origin (.getOrigin request)
-     :host (.getHost request)
-     :request-method (-> request .getMethod string/lower-case keyword)
-     :headers (reduce(fn [m [k v]]
-                       (assoc m (string/lower-case k) (string/join "," v)))
-                     {}
-                     (.getHeaders request))}))
+  WebSocket
+  (build-request-map [^WebSocket ws]
+    (let [request (-> ws session .getUpgradeRequest)]
+      {:uri (.getRequestURI request)
+       :query-string (.getQueryString request)
+       :origin (.getOrigin request)
+       :host (.getHost request)
+       :request-method (-> request .getMethod string/lower-case keyword)
+       :headers (reduce(fn [m [k v]]
+                         (assoc m (string/lower-case k) (string/join "," v)))
+                       {}
+                       (.getHeaders request))})))
 
 (defn- make-ws-handler
   "Returns a Jetty websocket handler"
@@ -317,25 +320,26 @@ supplied options:
       (.join s))
     s))
 
-;; (run (fn [_])
-;;   {:port 8013
-;;    :websockets {"/api/entries/realtime/"
-;;                 (fn [{:keys [in out ctrl ws]
-;;                       :as opts}]
-;;                   (async/go
-;;                     (loop []
-;;                       (when-let [x (async/<! ctrl)]
-;;                         (println :ctrl x ctrl)
-;;                         (recur))))
-;;                   (async/go
-;;                     (loop []
-;;                       (when-let [x (async/<! in)]
-;;                         (println :recv x in)
-;;                         (recur))))
+(run (fn [_])
+  {:port 8013
+   :websockets {"/api/entries/realtime/"
+                (fn [{:keys [in out ctrl ws]
+                      :as opts}]
+                  ;; (prn (build-request-map ws))
+                  (async/go
+                    (loop []
+                      (when-let [x (async/<! ctrl)]
+                        (println :ctrl x ctrl)
+                        (recur))))
+                  (async/go
+                    (loop []
+                      (when-let [x (async/<! in)]
+                        (println :recv x in)
+                        (recur))))
 
-;;                   (future (dotimes [i 3]
-;;                             (async/>!! out (str "send " i))
-;;                             (Thread/sleep 1000)))
+                  (future (dotimes [i 3]
+                            (async/>!! out (str "send " i))
+                            (Thread/sleep 1000)))
 
-;;                   ;; (close! ws)
-;;                   )}})
+                  ;; (close! ws)
+                  )}})
