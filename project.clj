@@ -21,7 +21,7 @@
              :test  {:dependencies []}}
   :codox {:src-dir-uri "https://github.com/mpenet/jet/blob/master/"
           :src-linenum-anchor-prefix "L"
-          :output-dir "doc/codox"
+          :output-dir "doc"
           :defaults {:doc/format :markdown}}
   :source-paths ["src/clj"]
   :java-source-paths ["src/java"]

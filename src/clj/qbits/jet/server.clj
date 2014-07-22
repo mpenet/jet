@@ -128,7 +128,7 @@ Derived from ring.adapter.jetty"
   ;; (-send! [this ws] ()
   )
 
-(defn- reify-ws-creator
+(defn- make-ws-creator
   [handler]
   (reify WebSocketCreator
     (createWebSocket [this _ _]
@@ -163,7 +163,7 @@ Derived from ring.adapter.jetty"
     (configure [^WebSocketServletFactory factory]
       (-> (.getPolicy factory)
           (.setIdleTimeout ws-max-idle-time))
-      (.setCreator factory (reify-ws-creator handlers)))))
+      (.setCreator factory (make-ws-creator handlers)))))
 
 (defn- make-handler
   "Returns an Jetty Handler implementation for the given Ring handler."
