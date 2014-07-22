@@ -45,7 +45,7 @@ Derived from ring.adapter.jetty"
 (defprotocol PWebSocket
   (send! [this msg])
   (close! [this])
-  (remote [this])
+  (remote ^RemoteEndpoint [this])
   (remote-addr [this])
   (idle-timeout! [this ms]))
 
@@ -64,8 +64,7 @@ Derived from ring.adapter.jetty"
      ^ManyToManyChannel out
      ^ManyToManyChannel ctrl
      ^IFn handler
-     ^{:volatile-mutable true :tag Session}
-     session]
+     ^{:volatile-mutable true :tag Session} session]
 
   WebSocketListener
   (onWebSocketConnect [this s]
@@ -100,7 +99,7 @@ Derived from ring.adapter.jetty"
   (remote-addr [this]
     (.getRemoteAddress session))
   (idle-timeout! [this ms]
-    (.setIdleTimeout session ^long ms)))
+    (.setIdleTimeout session (long ms))))
 
 (extend-protocol WebSocketSend
 
@@ -110,26 +109,24 @@ Derived from ring.adapter.jetty"
 
   ByteBuffer
   (-send! [bb ws]
-    (-> ws ^RemoteEndpoint remote (.sendBytes ^ByteBuffer bb)))
+    (-> ws remote (.sendBytes ^ByteBuffer bb)))
 
   String
   (-send! [s ws]
-    (-> ws ^RemoteEndpoint remote (.sendString ^String s)))
+    (-> ws remote (.sendString ^String s)))
 
   IFn
   (-send! [f ws]
-    (-> ws ^RemoteEndpoint remote f))
+    (-> ws remote f))
 
   Object
   (-send! [this ws]
-    (-> ws ^RemoteEndpoint remote (.sendString (str this))))
+    (-> ws remote (.sendString (str this))))
 
   ;; "nil" could PING?
   ;; nil
   ;; (-send! [this ws] ()
-
   )
-
 
 (defn- reify-ws-creator
   [handler]
