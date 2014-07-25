@@ -71,9 +71,14 @@
     (handler {:in in :out out :ctrl ctrl :ws this})
     (async/go
       (loop []
-        (when-let [x (async/<! out)]
-          (send! this x)
-          (recur)))))
+        ;; if we pull out of value of out, we send it and recur for
+        ;; another one, otherwise that means the user closed it, in
+        ;; that case we close the Socket (if not closed already)
+        ;; and exit the loop.
+        (if-let [x (async/<! out)]
+          (do (send! this x)
+              (recur))
+          (close! this)))))
   (onWebSocketError [this e]
     (async/put! ctrl [:error e])
     (close-chans! in out ctrl))
@@ -94,7 +99,8 @@
   (send! [this msg]
     (-send! msg this))
   (close! [this]
-    (.close session))
+    (when (.isOpen session)
+      (.close session)))
   (remote-addr [this]
     (.getRemoteAddress session))
   (idle-timeout! [this ms]
