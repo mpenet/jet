@@ -2,30 +2,36 @@
   (:require
    [clojure.core.async :as async]
    [clojure.string :as string])
-
   (:import
    (org.eclipse.jetty.client
     HttpClient
     HttpRequest)
+   (org.eclipse.jetty.http
+    HttpFields
+    HttpField)
    (org.eclipse.jetty.client.api
     Request$FailureListener
     Response$CompleteListener
     Response$ContentListener
-    Result)))
+    Request
+    Response
+    Result)
+   (java.nio ByteBuffer)))
 
 (defn byte-buffer->string
-  [bb]
+  [^ByteBuffer bb]
   (String. (.array bb) "UTF-8"))
 
 (defrecord JetResponse [status headers body])
 
 (defn result->response
-  [result content-ch]
+  [^Result result content-ch]
   (let [response (.getResponse result)]
     (JetResponse. (.getStatus response)
-                  (reduce (fn [m h] (assoc m (.getName h) (.getValue h)))
+                  (reduce (fn [m ^HttpField h]
+                            (assoc m (.getName h) (.getValue h)))
                           {}
-                          (.getHeaders response))
+                          ^HttpFields (.getHeaders response))
                   content-ch)))
 
 (defprotocol PRequest
@@ -61,7 +67,7 @@
   (let [ch (async/chan)
         content-ch (async/chan)
         client (HttpClient.)
-        request (.newRequest client url)]
+        request ^Request (.newRequest client ^String url)]
 
     (.start client)
     (.method request (name method))
@@ -70,7 +76,7 @@
       (.content request (encode-body body)))
 
     (doseq [[k v] headers]
-      (.header request (name k) v))
+      (.header request (name k) (str v)))
 
     (doseq [[k v] query-string]
       (.param request (name k) v))
@@ -85,7 +91,7 @@
         (.send
          (reify Response$CompleteListener
            (onComplete [this result]
-             (async/put! ch (if (.isSucceeded result)
+             (async/put! ch (if (.isSucceeded ^Result result)
                               (result->response result content-ch)
                               (.getRequestFailure result)))))))
     ch))
