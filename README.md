@@ -5,19 +5,32 @@
 
 Jet is a server + clients library to interact/use jetty9 from clojure
 using core.async channels.
-The server is both a ring-adapter and has support for websocket
-Clients support http and websocket, the websocket client and server
-are used the same way from core.async (they actually share the same
-socket abstraction).
+
+Main goals are to be *lightweight*, *fast*, and *easy to use*.
+
+## What's in the box? (@ptaoussanis™)
+
+* **ring adapter** running on jetty9
+
+* **Websocket Server** with a simple yet powerfull api based on core.async
+
+* **WebSocket Client** sharing the same principles/api than the WebSocket
+  server handlers
+
+* **Asynchronous HTTP Client** with streaming/spdy support (yet to
+  come, it's incomplete still)
 
 The server part started from the code of the various
-ring-jetty9-adapters existing.
+`ring-jetty9-adapters` out there.
+
+What it will be able to do once complete:
+SPDY support,
 
 The API is still subject to changes.
 
-<!-- ## Documentation -->
+## Documentation
 
-<!-- [codox generated documentation](http://mpenet.github.com/jet/#docs). -->
+[codox generated documentation](http://mpenet.github.io/jet/).
 
 ## Installation
 
@@ -25,6 +38,9 @@ jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 
 Add this to your dependencies:
 
+```clojure
+[cc.qbits/jet "0.1.0-SNAPSHOT"]
+```
 ## Example
 
 Here we have the equivalent of a call to run-jetty, with the first
@@ -98,11 +114,6 @@ The websocket client is used the same way
 
 If you close the :out channel, the socket will be closed, this is true
 for both client/server modes.
-
-
-```clojure
-[cc.qbits/jet "0.1.0-SNAPSHOT"]
-```
 
 Please check the
 [Changelog](https://github.com/mpenet/jet/blob/master/CHANGELOG.md)
