@@ -61,7 +61,8 @@ and the underlying WebSocketAdapter instance for potential advanced uses.
 
 * `in` will receive content sent by this connected client
 
-* `out` will allow you to push content to this connected client
+* `out` will allow you to push content to this connected client and
+  close the socket
 
 ```clojure
 (use 'qbits.jet.server)
