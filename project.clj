@@ -13,6 +13,7 @@
                  [org.eclipse.jetty/jetty-server "9.2.1.v20140609"]
                  [org.eclipse.jetty.websocket/websocket-server "9.2.1.v20140609"]
                  [org.eclipse.jetty.websocket/websocket-servlet "9.2.1.v20140609"]
+                 [org.eclipse.jetty.websocket/websocket-client "9.2.1.v20140609"]
                  [org.eclipse.jetty/jetty-client "9.2.1.v20140609"]]
   :profiles {:1.4  {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5  {:dependencies [[org.clojure/clojure "1.5.0"]]}
