@@ -32,23 +32,23 @@
 
     (Client. client request ws)))
 
-(future
-  (ws-client "ws://foo.com:8013/api/entries/realtime/"
-             (fn [{:keys [in out ctrl ws]}]
-               (prn in out ctrl ws)
-               ;; (async/go
-               ;;   (loop []
-               ;;     (when-let [x (async/<! ctrl)]
-               ;;       (println :client-ctrl x ctrl)
-               ;;       (recur))))
+;; (future
+;;   (ws-client "ws://foo.com:8013/api/entries/realtime/"
+;;              (fn [{:keys [in out ctrl ws]}]
+;;                (prn in out ctrl ws)
+;;                ;; (async/go
+;;                ;;   (loop []
+;;                ;;     (when-let [x (async/<! ctrl)]
+;;                ;;       (println :client-ctrl x ctrl)
+;;                ;;       (recur))))
 
-               ;; (async/go
-               ;;   (loop []
-               ;;     (when-let [x (async/<! in)]
-               ;;       (println :client-recv x in)
-               ;;       (recur))))
+;;                ;; (async/go
+;;                ;;   (loop []
+;;                ;;     (when-let [x (async/<! in)]
+;;                ;;       (println :client-recv x in)
+;;                ;;       (recur))))
 
-               (future (dotimes [i 3]
-                  (async/>!! out (str "client send " (str "client-" i)))
-                  (Thread/sleep 1000)))
-               )))
+;;                (future (dotimes [i 3]
+;;                   (async/>!! out (str "client send " (str "client-" i)))
+;;                   (Thread/sleep 1000)))
+;;                )))
