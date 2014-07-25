@@ -1,4 +1,4 @@
-(ns qbits.jet.websocket-client
+(ns qbits.jet.client.websocket
   (:require
    [qbits.jet.websocket :as ws]
    [clojure.core.async :as async])
@@ -25,11 +25,6 @@
     (.start client)
 
     (.connect client ws (URI/create url))
-
-    ;; (Thread/sleep 1000)
-    ;; (prn (async/<!! (.-ctrl ws)))
-    ;; (prn :after)
-
     (Client. client request ws)))
 
 ;; (future

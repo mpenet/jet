@@ -1,4 +1,4 @@
-(ns qbits.jet.client
+(ns qbits.jet.client.http
   (:require
    [clojure.core.async :as async]
    [clojure.string :as string])
@@ -16,7 +16,6 @@
 (defn byte-buffer->string
   [bb]
   (String. (.array bb) "UTF-8"))
-
 
 (defrecord JetResponse [status headers body])
 
