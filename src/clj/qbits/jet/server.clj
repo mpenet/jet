@@ -4,7 +4,8 @@ Derived from ring.adapter.jetty"
   (:require
    [ring.util.servlet :as servlet]
    [clojure.string :as string]
-   [clojure.core.async :as async])
+   [clojure.core.async :as async]
+   [qbits.jet.websocket :refer :all])
   (:import
    (org.eclipse.jetty.server
     Handler
@@ -38,103 +39,13 @@ Derived from ring.adapter.jetty"
     RemoteEndpoint
     Session
     UpgradeRequest)
-   (clojure.lang IFn)
-   (java.nio ByteBuffer)
-   (clojure.core.async.impl.channels ManyToManyChannel)))
-
-(defprotocol PWebSocket
-  (send! [this msg] "Send content to client connected to this WebSocket instance")
-  (close! [this] "Close active WebSocket")
-  (remote ^RemoteEndpoint [this] "Remote endpoint instance")
-  (session ^Session [this] "Session instance")
-  (remote-addr [this] "Address of remote client")
-  (idle-timeout! [this ms] "Set idle timeout on client"))
-
-(defprotocol WebSocketSend
-  (-send! [x ^WebSocket ws] "How to encode content sent to the WebSocket clients"))
-
-(defrecord WebSocketBinaryFrame [payload offset len])
-
-(defn close-chans!
-  [& chs]
-  (doseq [ch chs]
-    (async/close! ch)))
-
-(deftype WebSocket
-    [^ManyToManyChannel in
-     ^ManyToManyChannel out
-     ^ManyToManyChannel ctrl
-     ^IFn handler
-     ^Session ^:volatile-mutable  session]
-
-  WebSocketListener
-  (onWebSocketConnect [this s]
-    (set! session s)
-    (async/put! ctrl [::connect this])
-    (handler {:in in :out out :ctrl ctrl :ws this})
-    (async/go
-      (loop []
-        (when-let [x (async/<! out)]
-          (send! this x)
-          (recur)))))
-  (onWebSocketError [this e]
-    (async/put! ctrl [:error e])
-    (close-chans! in out ctrl))
-  (onWebSocketClose [this code reason]
-    (set! session nil)
-    (async/put! ctrl [::close reason])
-    (close-chans! in out ctrl))
-  (onWebSocketText [this message]
-    (async/put! in message))
-  (onWebSocketBinary [this payload offset len]
-    (async/put! in (WebSocketBinaryFrame. payload offset len)))
-
-  PWebSocket
-  (remote [this]
-    (when session
-      (.getRemote session)))
-  (session [this] session)
-  (send! [this msg]
-    (-send! msg this))
-  (close! [this]
-    (.close session))
-  (remote-addr [this]
-    (.getRemoteAddress session))
-  (idle-timeout! [this ms]
-    (.setIdleTimeout session (long ms))))
-
-(extend-protocol WebSocketSend
-
-  (Class/forName "[B")
-  (-send! [ba ws]
-    (-send! (ByteBuffer/wrap ba) ws))
-
-  ByteBuffer
-  (-send! [bb ws]
-    (-> ws remote (.sendBytes ^ByteBuffer bb)))
-
-  String
-  (-send! [s ws]
-    (-> ws remote (.sendString ^String s)))
-
-  IFn
-  (-send! [f ws]
-    (-> ws remote f))
-
-  Object
-  (-send! [this ws]
-    (-> ws remote (.sendString (str this))))
-
-  ;; "nil" could PING?
-  ;; nil
-  ;; (-send! [this ws] ()
-  )
+   (qbits.jet.websocket WebSocket)))
 
 (defn- make-ws-creator
   [handler]
   (reify WebSocketCreator
     (createWebSocket [this _ _]
-      (WebSocket. (async/chan) (async/chan) (async/chan) handler nil))))
+      (make-websocket handler))))
 
 (defprotocol RequestMapDecoder
   (build-request-map [r]))
@@ -320,26 +231,27 @@ supplied options:
       (.join s))
     s))
 
-;; (run (fn [_])
-;;   {:port 8013
-;;    :websockets {"/api/entries/realtime/"
-;;                 (fn [{:keys [in out ctrl ws]
-;;                       :as opts}]
-;;                   ;; (prn (build-request-map ws))
-;;                   (async/go
-;;                     (loop []
-;;                       (when-let [x (async/<! ctrl)]
-;;                         (println :ctrl x ctrl)
-;;                         (recur))))
-;;                   (async/go
-;;                     (loop []
-;;                       (when-let [x (async/<! in)]
-;;                         (println :recv x in)
-;;                         (recur))))
+(future
+  (run (fn [_])
+   {:port 8013
+    :websockets {"/api/entries/realtime/"
+                 (fn [{:keys [in out ctrl ws]
+                       :as opts}]
+                   ;; (prn (build-request-map ws))
+                   (async/go
+                     (loop []
+                       (when-let [x (async/<! ctrl)]
+                         (println :ctrl x ctrl)
+                         (recur))))
+                   (async/go
+                     (loop []
+                       (when-let [x (async/<! in)]
+                         (println :recv x in)
+                         (recur))))
 
-;;                   (future (dotimes [i 3]
-;;                             (async/>!! out (str "send " i))
-;;                             (Thread/sleep 1000)))
+                   (future (dotimes [i 3]
+                             (async/>!! out (str "send " i))
+                             (Thread/sleep 1000)))
 
-;;                   ;; (close! ws)
-;;                   )}})
+                   ;; (close! ws)
+                   )}}))
