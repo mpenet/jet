@@ -3,10 +3,12 @@
 
 <img src="http://i.imgur.com/gs2v6d8.gif" title="Hosted by imgur.com" align="right"/>
 
-Jet is a server + client library to interact/use jetty9 from clojure
+Jet is a server + clients library to interact/use jetty9 from clojure
 using core.async channels.
-The server is both a ring-adapter and has support for websocket, and
-the client has yet to see the light of day.
+The server is both a ring-adapter and has support for websocket
+Clients support http and websocket, the websocket client and server
+are used the same way from core.async (they actually share the same
+socket abstraction).
 
 The server part started from the code of the various
 ring-jetty9-adapters existing.
@@ -43,6 +45,8 @@ and the underlying WebSocketAdapter instance for potential advanced uses.
 * `out` will allow you to push content to this connected client
 
 ```clojure
+(use 'qbits.jet.server)
+
 (run some-ring-handler
   {:port 8013
    :websockets {"/foo/"
@@ -66,6 +70,35 @@ and the underlying WebSocketAdapter instance for potential advanced uses.
                   ;; (close! ws)
                   )}})
 ```
+
+
+
+The websocket client is used the same way
+
+```clojure
+(use 'qbits.jet.client.websocket)
+(ws-client "ws://localhost:8013/foo/"
+           (fn [{:keys [in out ctrl ws]}]
+             (async/go
+               (loop []
+                 (when-let [x (async/<! ctrl)]
+                   (println :client-ctrl x ctrl)
+                   (recur))))
+
+             (async/go
+               (loop []
+                 (when-let [x (async/<! in)]
+                   (println :client-recv x in)
+                   (recur))))
+
+             (future (dotimes [i 3]
+                       (async/>!! out (str "client send " (str "client-" i)))
+                       (Thread/sleep 1000))))))
+```
+
+If you close the :out channel, the socket will be closed, this is true
+for both client/server modes.
+
 
 ```clojure
 [cc.qbits/jet "0.1.0-SNAPSHOT"]
