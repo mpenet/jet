@@ -12,7 +12,9 @@
 (defrecord Client [client request socket])
 
 (defn ws-client
-  "Takes an url and a handler and returns a websocket client.
+  "Takes an url a handler, an option map (optional) and returns a websocket
+client.
+
 The handler receives a map of:
 
 * `:in` - core.async chan that receives data sent by the client

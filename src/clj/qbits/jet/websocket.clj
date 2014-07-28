@@ -36,19 +36,19 @@
 
   ByteBuffer
   (-send! [bb ws]
-    (-> ws remote (.sendBytes ^ByteBuffer bb)))
+    (some-> ws remote (.sendBytes ^ByteBuffer bb)))
 
   String
   (-send! [s ws]
-    (-> ws remote (.sendString ^String s)))
+    (some-> ws remote (.sendString ^String s)))
 
   IFn
   (-send! [f ws]
-    (-> ws remote f))
+    (some-> ws remote f))
 
   Object
   (-send! [this ws]
-    (-> ws remote (.sendString (str this))))
+    (some-> ws remote (.sendString (str this))))
 
   ;; "nil" could PING?
   ;; nil
