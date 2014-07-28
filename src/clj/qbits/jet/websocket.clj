@@ -68,7 +68,6 @@
   (onWebSocketConnect [this s]
     (set! session s)
     (async/put! ctrl [::connect this])
-    (handler {:in in :out out :ctrl ctrl :ws this})
     (async/go
       (loop []
         ;; if we pull out of value of out, we send it and recur for
@@ -76,16 +75,20 @@
         ;; that case we close the Socket (if not closed already)
         ;; and exit the loop.
         (if-let [x (async/<! out)]
-          (do (send! this x)
-              (recur))
-          (close! this)))))
+          (do
+            (send! this x)
+            (recur))
+          (close! this))))
+    (handler {:in in :out out :ctrl ctrl :ws this}))
   (onWebSocketError [this e]
-    (async/put! ctrl [:error e])
+    (async/put! ctrl [::error e])
     (close-chans! in out ctrl))
+
   (onWebSocketClose [this code reason]
     (set! session nil)
     (async/put! ctrl [::close reason])
     (close-chans! in out ctrl))
+
   (onWebSocketText [this message]
     (async/put! in message))
   (onWebSocketBinary [this payload offset len]
@@ -99,7 +102,7 @@
   (send! [this msg]
     (-send! msg this))
   (close! [this]
-    (when (.isOpen session)
+    (when (some-> session .isOpen)
       (.close session)))
   (remote-addr [this]
     (.getRemoteAddress session))
