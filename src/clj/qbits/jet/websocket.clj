@@ -67,7 +67,7 @@
   WebSocketListener
   (onWebSocketConnect [this s]
     (set! session s)
-    (async/put! ctrl [::connect this])
+    (async/put! ctrl [::connect s])
     (async/go
       (loop []
         ;; if we pull out of value of out, we send it and recur for
@@ -86,7 +86,7 @@
 
   (onWebSocketClose [this code reason]
     (set! session nil)
-    (async/put! ctrl [::close reason])
+    (async/put! ctrl [::close code reason])
     (close-chans! in out ctrl))
 
   (onWebSocketText [this message]
