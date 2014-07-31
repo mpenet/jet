@@ -67,7 +67,7 @@ and the underlying WebSocketAdapter instance for potential advanced uses.
 ```clojure
 (use 'qbits.jet.server)
 
-(run some-ring-handler
+(run-jetty some-ring-handler
   {:port 8013
    :websockets {"/foo/"
                 (fn [{:keys [in out ctrl ws]

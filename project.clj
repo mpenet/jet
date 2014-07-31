@@ -1,4 +1,4 @@
-(defproject cc.qbits/jet "0.1.0-SNAPSHOT"
+(defproject cc.qbits/jet "0.1.0"
   :description ""
   :url "https://github.com/mpenet/jet"
   :license {:name "Eclipse Public License"
@@ -10,15 +10,16 @@
                   :exclusions [javax.servlet/servlet-api]]
                  [ring/ring-servlet "1.3.0"
                   :exclusions [javax.servlet/servlet-api]]
-                 [org.eclipse.jetty/jetty-server "9.2.1.v20140609"]
-                 [org.eclipse.jetty.websocket/websocket-server "9.2.1.v20140609"]
-                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.1.v20140609"]
-                 [org.eclipse.jetty.websocket/websocket-client "9.2.1.v20140609"]
-                 [org.eclipse.jetty/jetty-client "9.2.1.v20140609"]]
+                 [org.eclipse.jetty/jetty-server "9.2.2.v20140723"]
+                 [org.eclipse.jetty.websocket/websocket-server "9.2.2.v20140723"]
+                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.2.v20140723"]
+                 [org.eclipse.jetty.websocket/websocket-client "9.2.2.v20140723"]
+                 [org.eclipse.jetty/jetty-client "9.2.2.v20140723"]]
   :profiles {:1.4  {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5  {:dependencies [[org.clojure/clojure "1.5.0"]]}
              :1.6  {:dependencies [[org.clojure/clojure "1.6.0"]]}
-             :dev  {:dependencies [[codox "0.8.10"]]}
+             :dev  {:dependencies [[codox "0.8.10"]
+                                   [clj-http "0.6.4"]]}
              :test  {:dependencies []}}
   :codox {:src-dir-uri "https://github.com/mpenet/jet/blob/master/"
           :src-linenum-anchor-prefix "L"

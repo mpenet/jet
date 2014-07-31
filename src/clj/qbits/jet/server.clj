@@ -141,13 +141,15 @@ Derived from ring.adapter.jetty"
 (defn- create-server
   "Construct a Jetty Server instance."
   [{:as options
-    :keys [port max-threads daemon? max-idle-time host ssl? ssl-port]
+    :keys [port max-threads min-threads daemon? max-idle-time host ssl? ssl-port]
     :or {port 80
          max-threads 50
+         min-threads 8
          daemon? false
          max-idle-time 200000
          ssl? false}}]
-  (let [pool (doto (QueuedThreadPool. (int max-threads))
+  (let [pool (doto (QueuedThreadPool. (int max-threads)
+                                      (int min-threads))
                (.setDaemon daemon?))
         server (doto (Server. pool)
                  (.addBean (ScheduledExecutorScheduler.)))
@@ -173,7 +175,7 @@ Derived from ring.adapter.jetty"
     (.setConnectors server connectors)
     server))
 
-(defn ^Server run
+(defn ^Server run-jetty
   "Start a Jetty webserver to serve the given handler according to the
 supplied options:
 
@@ -206,14 +208,16 @@ supplied options:
 
     * `:in`: core.async chan that receives data sent by the client
     * `:out`: core async chan you can use to send data to client
-    * `:ctrl`: core.asyn chan that received control messages such as: `[::connect this]`, `[::error e]`, `[::close reason]`
+    * `:ctrl`: core.async chan that received control messages such as: `[::connect session]`, `[::error e]`, `[::close code reason]`
 "
   [ring-handler {:as options
-                 :keys [max-threads websockets configurator join?]
+                 :keys [max-threads min-threads websockets configurator join?]
                  :or {max-threads 50
+                      min-threads 8
                       join? true}}]
   (let [^Server s (create-server options)
-        ^QueuedThreadPool p (QueuedThreadPool. (int max-threads))
+        ^QueuedThreadPool p (QueuedThreadPool. (int max-threads)
+                                               (int min-threads))
         ring-app-handler (make-handler ring-handler)
         ws-handlers (map (fn [[context-path handler]]
                            (doto (ContextHandler.)
@@ -232,7 +236,7 @@ supplied options:
     s))
 
 ;; (future
-;;   (run (fn [_])
+;;   (run-jetty (fn [_])
 ;;    {:port 8013
 ;;     :websockets {"/api/entries/realtime/"
 ;;                  (fn [{:keys [in out ctrl ws]

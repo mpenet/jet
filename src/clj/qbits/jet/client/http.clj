@@ -81,7 +81,6 @@
     (doseq [[k v] query-string]
       (.param request (name k) v))
 
-
     (-> request
         (.onResponseContent
          (reify Response$ContentListener
