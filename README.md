@@ -12,7 +12,7 @@ Main goals are to be *lightweight*, *fast*, and *easy to use*.
 
 * **ring adapter** running on jetty9
 
-* **Websocket Server** with a simple yet powerfull api based on core.async
+* **Websocket Server** with a simple yet powerful api based on core.async
 
 * **WebSocket Client** sharing the same principles/api than the WebSocket
   server handlers
