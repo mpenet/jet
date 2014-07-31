@@ -23,6 +23,7 @@ Main goals are to be *lightweight*, *fast*, and *easy to use*.
 The server part started from the code of the various
 `ring-jetty9-adapters` out there.
 
+
 In the current state the server is fairly complete/stable, the
 websocket client nearly 100%, the HTTP client still at early stages.
 
