@@ -1,5 +1,5 @@
 # jet
-<!-- [![Build Status](https://secure.travis-ci.org/mpenet/jet.png?branch=master)](http://travis-ci.org/mpenet/jet) -->
+[![Build Status](https://secure.travis-ci.org/mpenet/jet.png?branch=master)](http://travis-ci.org/mpenet/jet)
 
 <img src="http://i.imgur.com/gs2v6d8.gif" title="Hosted by imgur.com" align="right"/>
 
