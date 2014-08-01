@@ -111,8 +111,7 @@
           (is (= (:server-port request-map) 4347))
           (is (= (:ssl-client-cert request-map) nil))))))
 
-
-  (testing "websocket ping-pong"
+  (testing "WebSocket ping-pong"
     (let [p (promise)]
       (with-server nil
         {:port 4347
@@ -128,36 +127,3 @@
                             (async/close! out)
                             (deliver p true)))))
         (is (deref p 1000 false))))))
-
-
-;; (def state (atom {:server {:in 10 :out 10}}))
-
-;; (def ^:dynamic *server*)
-
-;; (use-fixtures :once
-;;   (fn []
-;;     (future
-;;       (binding [*server* (run (fn [_])
-;;                            {:port 8899
-;;                             :websockets {"/"
-;;                                          (fn [{:keys [in out ctrl ws]
-;;                                                :as opts}]
-;;                                            ;; (prn (build-request-map ws))
-;;                                            (async/go
-;;                                              (loop []
-;;                                                (when-let [x (async/<! ctrl)]
-;;                                                  (println :ctrl x ctrl)
-;;                                                  (recur))))
-;;                                            (async/go
-;;                                              (loop []
-;;                                                (when-let [x (async/<! in)]
-;;                                                  (println :recv x in)
-;;                                                  (recur))))
-
-;;                                            (future (dotimes [i 3]
-;;                                                      (async/>!! out (str "send " i))
-;;                                                      (Thread/sleep 1000)))
-
-;;                                            ;; (close! ws)
-;;                                            )}})])
-;; )))
