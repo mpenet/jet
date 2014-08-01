@@ -21,7 +21,7 @@ The handler receives a map of:
 * `:out` - core async chan you can use to send data to client, or close the
 connection by closing the channel
 * `:ctrl` - core.asyn chan that received control messages such as:
-`[::connect this]`, `[::error e]`, `[::close reason]`
+``[::error e]`, `[::close reason]`
 * `:ws` - qbits.jet.websocket/WebSocket instance"
   [url handler & [{:as options
                    :keys [executor ssl-context-factory]}]]

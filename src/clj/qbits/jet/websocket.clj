@@ -67,7 +67,6 @@
   WebSocketListener
   (onWebSocketConnect [this s]
     (set! session s)
-    (async/put! ctrl [::connect s])
     (async/go
       (loop []
         ;; if we pull out of value of out, we send it and recur for
