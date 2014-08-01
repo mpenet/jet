@@ -7,13 +7,26 @@
    (org.eclipse.jetty.websocket.client
     WebSocketClient
     ClientUpgradeRequest)
+   (org.eclipse.jetty.http HttpField)
    (qbits.jet.websocket WebSocket)))
 
 (defrecord Client [client request socket])
 
 (defn ws-client
-  "Takes an url a handler, an option map (optional) and returns a websocket
+  "Takes an url a handler, an option map and returns a websocket
 client.
+
+The option map can take the following keys:
+
+* `:executor` - java.util.concurrent.Executor instance
+* `:ssl-context-factory` - SSLContextFactory instance to be use to perform wss
+requests http://download.eclipse.org/jetty/stable-9/apidocs/org/eclipse/jetty/util/ssl/SslContextFactory.html
+* `:in` - fn that returns the :in channel that the handler will receive -
+defaults to c.core.async/chan
+* `:out` - fn that returns the :in channel that the handler will receive -
+defaults to c.core.async/chan
+* `:ctrl` - fn that returns the :in channel that the handler will receive -
+defaults to c.core.async/chan
 
 The handler receives a map of:
 
@@ -24,8 +37,15 @@ connection by closing the channel
 ``[::error e]`, `[::close reason]`
 * `:ws` - qbits.jet.websocket/WebSocket instance"
   [url handler & [{:as options
-                   :keys [executor ssl-context-factory
-                          in out ctrl]
+                   :keys [in out ctrl
+                          executor
+                          ssl-context-factory
+                          async-write-timeout
+                          connect-timeout
+                          max-idle-timeout
+                          max-binary-message-buffer-size
+                          max-text-message-buffer-size
+                          daemon?]
                    :or {in async/chan
                         out async/chan
                         ctrl async/chan}}]]
@@ -37,28 +57,31 @@ connection by closing the channel
     (when executor
       (.setExecutor client executor))
 
+    (when async-write-timeout
+      (.setAsyncWriteTimeout client (long async-write-timeout)))
+
+    (when connect-timeout
+      (.setConnectTimeout client (long connect-timeout)))
+
+    (when max-idle-timeout
+      (.setMaxIdleTimeout client (long max-idle-timeout)))
+
+    (when max-binary-message-buffer-size
+      (.setMaxBinaryMessageBufferSize client (int max-binary-message-buffer-size)))
+
+    (when max-text-message-buffer-size
+      (.setMaxTextMessageBufferSize client
+                                    (int max-text-message-buffer-size)))
+
+    ;; (.setDaemon client daemon?)
+
+;; void	setBindAdddress(SocketAddress bindAddress)
+;; void	setCookieStore(CookieStore cookieStore)
+;; void	setEventDriverFactory(EventDriverFactory factory)
+;; void	setMasker(Masker masker)
+;; void	setSessionFactory(SessionFactory sessionFactory)
+
     (.start client)
 
     (.connect client ws (URI/create url))
     (Client. client request ws)))
-
-;; (future
-;;   (ws-client "ws://foo.com:8013/api/entries/realtime/"
-;;              (fn [{:keys [in out ctrl ws]}]
-;;                (prn in out ctrl ws)
-;;                ;; (async/go
-;;                ;;   (loop []
-;;                ;;     (when-let [x (async/<! ctrl)]
-;;                ;;       (println :client-ctrl x ctrl)
-;;                ;;       (recur))))
-
-;;                ;; (async/go
-;;                ;;   (loop []
-;;                ;;     (when-let [x (async/<! in)]
-;;                ;;       (println :client-recv x in)
-;;                ;;       (recur))))
-
-;;                (future (dotimes [i 3]
-;;                   (async/>!! out (str "client send " (str "client-" i)))
-;;                   (Thread/sleep 1000)))
-;;                )))

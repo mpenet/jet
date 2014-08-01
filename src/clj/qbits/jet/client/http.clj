@@ -61,13 +61,70 @@
 (defn request
   [{:keys [url method scheme server-name server-port uri
            query-string form-parms
-           headers body file]
-    :or {method :get}
+           headers body file
+           address-resolution-timeout
+           connect-timeout
+           follow-redirects?
+           max-redirects
+           idle-timeout
+           max-connections-per-destination
+           max-requests-queued-per-destination
+           request-buffer-size
+           response-buffer-size
+           scheduler
+           user-agent
+           remove-idle-destinations?
+           dispatch-io?
+           tcp-no-delay?
+           strict-event-ordering?]
+    :or {method :get
+         remove-idle-destinations? true
+         dispatch-io? true
+         follow-redirects? true
+         tcp-no-delay? true
+         strict-event-ordering? false}
     :as r}]
   (let [ch (async/chan)
         content-ch (async/chan)
         client (HttpClient.)
         request ^Request (.newRequest client ^String url)]
+
+
+    (when address-resolution-timeout
+      (.setAddressResolutionTimeout client (long address-resolution-timeout)))
+
+    (when connect-timeout
+      (.setConnectTimeout client (long connect-timeout)))
+
+    (when max-redirects
+      (.setMaxRedirects client (int max-redirects)))
+
+    (when idle-timeout
+      (.setIdleTimeout client (long idle-timeout)))
+
+    (when max-connections-per-destination
+      (.setMaxConnectionsPerDestination client (int max-connections-per-destination)))
+
+    (when max-requests-queued-per-destination
+      (.setMaxRequestsQueuedPerDestination client (int max-requests-queued-per-destination)))
+
+    (when request-buffer-size
+      (.setRequestBufferSize client (int request-buffer-size)))
+
+    (when response-buffer-size
+      (.setResponseBufferSize client (int response-buffer-size)))
+
+    (when scheduler
+      (.setScheduler client scheduler))
+
+    (when user-agent
+      (.setUserAgentField client (HttpField. "User-Agent" ^String user-agent)))
+
+    (.setRemoveIdleDestinations client remove-idle-destinations?)
+    (.setDispatchIO client dispatch-io?)
+    (.setFollowRedirects client follow-redirects?)
+    (.setStrictEventOrdering client strict-event-ordering?)
+    (.setTCPNoDelay client tcp-no-delay?)
 
     (.start client)
     (.method request (name method))
