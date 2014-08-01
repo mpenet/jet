@@ -65,56 +65,37 @@ and the underlying WebSocketAdapter instance for potential advanced uses.
 * `out` will allow you to push content to this connected client and
   close the socket
 
+
+An example with a little PING/PONG between client and server:
+
 ```clojure
 (use 'qbits.jet.server)
 
+;; Simple ping/pong server, will wait for PING, reply PONG and close connection
 (run-jetty some-ring-handler
   {:port 8013
-   :websockets {"/foo/"
+   :websockets {"/"
                 (fn [{:keys [in out ctrl ws]
                       :as opts}]
-                  (async/go
-                    (loop []
-                      (when-let [x (async/<! ctrl)]
-                        (println :ctrl x ctrl)
-                        (recur))))
-                  (async/go
-                    (loop []
-                      (when-let [x (async/<! in)]
-                        (println :recv x in)
-                        (recur))))
-
-                  (future (dotimes [i 3]
-                            (async/>!! out (str "send " i))
-                            (Thread/sleep 1000)))
-
-                  ;; (close! ws)
-                  )}})
+                    (async/go
+                      (when (= "PING" (async/<! in))
+                        (async/>! out "PONG")
+                        (async/close! out))))}})
 ```
-
-
 
 The websocket client is used the same way
 
 ```clojure
 (use 'qbits.jet.client.websocket)
-(ws-client "ws://localhost:8013/foo/"
+
+;; Simple PING client to our server, sends PING, waits for PONG and
+;; closes the connection
+(ws-client "ws://localhost:8013/"
            (fn [{:keys [in out ctrl ws]}]
-             (async/go
-               (loop []
-                 (when-let [x (async/<! ctrl)]
-                   (println :client-ctrl x ctrl)
-                   (recur))))
-
-             (async/go
-               (loop []
-                 (when-let [x (async/<! in)]
-                   (println :client-recv x in)
-                   (recur))))
-
-             (future (dotimes [i 3]
-                       (async/>!! out (str "client send " (str "client-" i)))
-                       (Thread/sleep 1000))))))
+              (async/go
+                (async/>! out "PING")
+                (when (= "PONG" (async/<! in))
+                  (async/close! out))))))
 ```
 
 If you close the :out channel, the socket will be closed, this is true
