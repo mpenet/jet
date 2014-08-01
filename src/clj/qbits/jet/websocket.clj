@@ -109,5 +109,5 @@
     (.setIdleTimeout session (long ms))))
 
 (defn make-websocket
-  [handler]
-  (WebSocket. (async/chan) (async/chan) (async/chan) handler nil))
+  [in out ctrl handler]
+  (WebSocket. in out ctrl handler nil))

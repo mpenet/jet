@@ -42,10 +42,14 @@ Derived from ring.adapter.jetty"
    (qbits.jet.websocket WebSocket)))
 
 (defn- make-ws-creator
-  [handler]
+  [handler {:keys [in out ctrl]
+            :or {in async/chan
+                 out async/chan
+                 ctrl async/chan}
+            :as options}]
   (reify WebSocketCreator
     (createWebSocket [this _ _]
-      (make-websocket handler))))
+      (make-websocket (in) (out) (ctrl) handler))))
 
 (defprotocol RequestMapDecoder
   (build-request-map [r]))
@@ -77,7 +81,7 @@ Derived from ring.adapter.jetty"
     (configure [^WebSocketServletFactory factory]
       (-> (.getPolicy factory)
           (.setIdleTimeout ws-max-idle-time))
-      (.setCreator factory (make-ws-creator handlers)))))
+      (.setCreator factory (make-ws-creator handlers options)))))
 
 (defn- make-handler
   "Returns an Jetty Handler implementation for the given Ring handler."
@@ -208,7 +212,7 @@ supplied options:
 
     * `:in`: core.async chan that receives data sent by the client
     * `:out`: core async chan you can use to send data to client
-    * `:ctrl`: core.async chan that received control messages such as: `[::connect session]`, `[::error e]`, `[::close code reason]`
+    * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`
 "
   [ring-handler {:as options
                  :keys [max-threads min-threads websockets configurator join?]

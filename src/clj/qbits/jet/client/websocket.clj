@@ -24,11 +24,15 @@ connection by closing the channel
 ``[::error e]`, `[::close reason]`
 * `:ws` - qbits.jet.websocket/WebSocket instance"
   [url handler & [{:as options
-                   :keys [executor ssl-context-factory]}]]
+                   :keys [executor ssl-context-factory
+                          in out ctrl]
+                   :or {in async/chan
+                        out async/chan
+                        ctrl async/chan}}]]
 
   (let [client (WebSocketClient.)
         request (ClientUpgradeRequest.)
-        ws (ws/make-websocket handler)]
+        ws (ws/make-websocket (in) (out) (ctrl) handler)]
 
     (when executor
       (.setExecutor client executor))
