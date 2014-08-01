@@ -1,10 +1,15 @@
 (ns qbits.jet.test.server
-  (:use clojure.test
-        qbits.jet.server)
-  (:require [clj-http.client :as http])
-  (:import (org.eclipse.jetty.util.thread QueuedThreadPool)
-           (org.eclipse.jetty.server Server Request)
-           (org.eclipse.jetty.server.handler AbstractHandler)))
+  (:use
+   clojure.test)
+  (:require
+   [qbits.jet.server :refer [run-jetty]]
+   [qbits.jet.client.websocket :as ws]
+   [clj-http.client :as http]
+   [clojure.core.async :as async])
+  (:import
+   (org.eclipse.jetty.util.thread QueuedThreadPool)
+   (org.eclipse.jetty.server Server Request)
+   (org.eclipse.jetty.server.handler AbstractHandler)))
 
 (defn- hello-world [request]
   {:status  200
@@ -104,7 +109,26 @@
           (is (= (:scheme request-map) :http))
           (is (= (:server-name request-map) "localhost"))
           (is (= (:server-port request-map) 4347))
-          (is (= (:ssl-client-cert request-map) nil)))))))
+          (is (= (:ssl-client-cert request-map) nil))))))
+
+
+  (testing "websocket ping-pong"
+    (let [p (promise)]
+      (with-server nil
+        {:port 4347
+         :websockets {"/" (fn [{:keys [in out ctrl]}]
+                            (async/go
+                              (when (= "PING" (async/<! in))
+                                (async/>! out "PONG"))))}}
+        (ws/ws-client "ws://localhost:4347/"
+                      (fn [{:keys [in out ctrl]}]
+                        (async/go
+                          (async/>! out "PING")
+                          (when (= "PONG" (async/<! in))
+                            (async/close! out)
+                            (deliver p true)))))
+        (is (deref p 1000 false))))))
+
 
 ;; (def state (atom {:server {:in 10 :out 10}}))
 
