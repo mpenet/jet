@@ -10,3 +10,7 @@
 * Removed ::connect event from ctrl channel, it was a bit useless
   given that the ctrl channel gets created on connect, so its
   existence is basically equivalent to the event.
+
+* Use async/go & >! for feeding data to channels instead of put!,
+  the later could result in dropped values even with fixed size
+  buffers. Additionaly this should allow for better flow control.
