@@ -32,7 +32,7 @@
 
 (defn byte-buffer->string
   [^ByteBuffer bb]
-  (String. (byte-buffer->bytes bb) "UTF-8"))
+  (String. ^bytes (byte-buffer->bytes bb) "UTF-8"))
 
 (defn decode-body [bb as]
   (case as
