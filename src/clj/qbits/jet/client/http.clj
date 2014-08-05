@@ -6,6 +6,12 @@
    (org.eclipse.jetty.client
     HttpClient
     HttpRequest)
+   (org.eclipse.jetty.client.util
+    StringContentProvider
+    BytesContentProvider
+    ByteBufferContentProvider
+    InputStreamContentProvider
+    PathContentProvider)
    (org.eclipse.jetty.http
     HttpFields
     HttpField)
@@ -18,9 +24,20 @@
     Result)
    (java.nio ByteBuffer)))
 
+(defn byte-buffer->bytes
+  [^ByteBuffer bb]
+  (let [ba (byte-array (.remaining bb))]
+    (.get bb ba)
+    ba))
+
 (defn byte-buffer->string
   [^ByteBuffer bb]
-  (String. (.array bb) "UTF-8"))
+  (String. (byte-buffer->bytes bb) "UTF-8"))
+
+(defn decode-body [bb as]
+  (case as
+    :string (byte-buffer->string bb)
+    bb))
 
 (defrecord JetResponse [status headers body])
 
@@ -39,24 +56,29 @@
 
 (extend-protocol PRequest
   (Class/forName "[B")
-  (encode-body [x] x)
+  (encode-body [ba]
+    (BytesContentProvider.
+     (into-array (Class/forName "[B") [ba])))
+
+  ByteBuffer
+  (encode-body [bb]
+    (ByteBufferContentProvider. (into-array ByteBuffer [bb])))
 
   java.nio.file.Path
+  (encode-body [p]
+    (PathContentProvider. p))
 
   java.io.InputStream
-  (encode-body [x] x)
+  (encode-body [s]
+    (InputStreamContentProvider. s))
 
   String
   (encode-body [x]
-    (.getBytes x))
+    (StringContentProvider. x "UTF-8"))
 
   Object
   (encode-body [x]
     (throw (ex-info "Body content no supported by encoder"))))
-
-
-(defprotocol PResponse
-  (decode-body [x]))
 
 (defn request
   [{:keys [url method scheme server-name server-port uri
@@ -73,6 +95,7 @@
            response-buffer-size
            scheduler
            user-agent
+           as
            remove-idle-destinations?
            dispatch-io?
            tcp-no-delay?
@@ -88,7 +111,6 @@
         content-ch (async/chan)
         client (HttpClient.)
         request ^Request (.newRequest client ^String url)]
-
 
     (when address-resolution-timeout
       (.setAddressResolutionTimeout client (long address-resolution-timeout)))
@@ -142,7 +164,7 @@
         (.onResponseContent
          (reify Response$ContentListener
            (onContent [this response bytebuffer]
-             (async/put! content-ch bytebuffer))))
+             (async/put! content-ch (decode-body bytebuffer as)))))
 
         (.send
          (reify Response$CompleteListener
@@ -153,10 +175,10 @@
     ch))
 
 
-(comment
-  (prn (-> (request {:url "http://google.com/1" :method :get})
-          async/<!!
-          ;; :body
-          ;; async/<!!
-          ;; byte-buffer->string
-          )))
+;; (prn (-> (request {:url "http://localhost:8000/"
+;;                    :method :get
+;;                    :body (java.nio.file.Path. (java.io.File. "/home/mpenet/.bash_history"))
+;;                    :as :string})
+;;          async/<!!
+;;          :body
+;;          async/<!!))
