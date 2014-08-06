@@ -3,7 +3,8 @@
   (:require
    [clojure.core.async :as async]
    [qbits.jet.client.ssl :as ssl]
-   [clojure.string :as string])
+   [clojure.string :as string]
+   [cheshire.core :as json])
   (:import
    (org.eclipse.jetty.client
     HttpClient
@@ -42,8 +43,9 @@
 (defn decode-body [bb as]
   (case as
     :string (byte-buffer->string bb)
-    :byte-buffer
-    bb))
+    :json (json/parse-string (byte-buffer->string bb) true)
+    :json-str (json/parse-string (byte-buffer->string bb) false)
+    :byte-buffer bb))
 
 (defrecord Response [status headers body])
 
@@ -246,12 +248,12 @@
   ([url]
      (trace url {})))
 
-;; (prn (-> (get "http://localhost:9000/"
+;; (prn (-> (get "http://graph.facebook.com/zuck"
 ;;               {
 ;;                ;; :timeout 3000
 ;;                ;; :body nil
 ;;                ;; :form-params {:b "foo" :a 1}
-;;                :as :string})
+;;                :as :json})
 ;;          async/<!!
 ;;          :body
 ;;          async/<!!))

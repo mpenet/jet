@@ -148,6 +148,14 @@
             request-map (request-map->edn response)]
         (is (= :trace (:request-method request-map))))))
 
+
+ (testing "HTTP request :as"
+   (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json})
+                     async/<!! :body async/<!! :username)))
+
+   (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json-str})
+                     async/<!! :body async/<!! (get "username")))))
+
   (testing "WebSocket ping-pong"
     (let [p (promise)]
       (with-server nil
