@@ -129,7 +129,24 @@ user> #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@731
 ;; block for the response
 (<!! (http/get "http://graph.facebook.com/zuck"))
 
-user> #qbits.jet.client.http.Response{:status 200, :headers {"content-type" "text/javascript; charset=UTF-8", "access-control-allow-origin" "*", "content-length" "173", "facebook-api-version" "v1.0", "connection" "keep-alive", "pragma" "no-cache", "expires" "Sat, 01 Jan 2000 00:00:00 GMT", "x-fb-rev" "1358170", "etag" "\"3becf5f2bb7ec39daa6bb65345d40b9f4b1db483\"", "date" "Wed, 06 Aug 2014 15:43:19 GMT", "cache-control" "private, no-cache, no-store, must-revalidate"}, :body #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@5a278fe0>}
+user>
+{:status 200,
+ :headers
+ {"content-type" "text/javascript; charset=UTF-8",
+  "access-control-allow-origin" "*",
+  "content-length" "173",
+  "x-fb-debug"
+  "jkc4w5S1VN3bLddmGEU+r3F/5ANxPZXrcqq3bUXJ3n2bwZq7WB0xy+mB/CziD56wHWd2us//p2dTmRQSIiW+Yg==",
+  "facebook-api-version" "v1.0",
+  "connection" "keep-alive",
+  "pragma" "no-cache",
+  "expires" "Sat, 01 Jan 2000 00:00:00 GMT",
+  "x-fb-rev" "1358170",
+  "etag" "\"3becf5f2bb7ec39daa6bb65345d40b9f4b1db483\"",
+  "date" "Wed, 06 Aug 2014 15:51:02 GMT",
+  "cache-control" "private, no-cache, no-store, must-revalidate"},
+ :body
+ #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@7ca698b0>}
 
 
 ;; get to the body
@@ -144,7 +161,15 @@ user> #qbits.jet.client.http.Response{:status 200, :headers {"content-type" "tex
          async/<!!
          :body
          async/<!!)
-{:id "4", :first_name "Mark", :gender "male", :last_name "Zuckerberg", :link "https://www.facebook.com/zuck", :locale "en_US", :name "Mark Zuckerberg", :username "zuck"}
+user>
+{:id "4",
+ :first_name "Mark",
+ :gender "male",
+ :last_name "Zuckerberg",
+ :link "https://www.facebook.com/zuck",
+ :locale "en_US",
+ :name "Mark Zuckerberg",
+ :username "zuck"}
 
 ;; POST
 (post "http://foo.com" {:form-params {:foo "bar :baz 1}})
