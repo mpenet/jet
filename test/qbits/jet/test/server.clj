@@ -47,9 +47,9 @@
                               :ssl-port 4348
                               :keystore "test/keystore.jks"
                               :key-password "password"}
-      (let [response (http/get "https://localhost:4348" {:insecure? true})]
+      (let [response (async/<!! (http/get "https://localhost:4348" {:insecure? true}))]
         (is (= (:status response) 200))
-        (is (= (:body response) "Hello World")))))
+        (is (= (-> response :body async/<!!) "Hello World")))))
 
   (testing "setting daemon threads"
     (testing "default (daemon off)"
