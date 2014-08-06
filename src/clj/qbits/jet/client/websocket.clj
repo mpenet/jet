@@ -10,9 +10,9 @@
    (org.eclipse.jetty.http HttpField)
    (qbits.jet.websocket WebSocket)))
 
-(defrecord Client [client request socket])
+(defrecord Connection [client request socket])
 
-(defn ws-client
+(defn connect!
   "Takes an url a handler, an option map and returns a websocket
 client.
 
@@ -84,4 +84,4 @@ connection by closing the channel
     (.start client)
 
     (.connect client ws (URI/create url))
-    (Client. client request ws)))
+    (Connection. client request ws)))

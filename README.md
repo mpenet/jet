@@ -91,12 +91,12 @@ The websocket client is used the same way
 
 ;; Simple PING client to our server, sends PING, waits for PONG and
 ;; closes the connection
-(ws-client "ws://localhost:8013/"
-           (fn [{:keys [in out ctrl ws]}]
-              (async/go
-                (async/>! out "PING")
-                (when (= "PONG" (async/<! in))
-                  (async/close! out))))))
+(connect! "ws://localhost:8013/"
+          (fn [{:keys [in out ctrl ws]}]
+            (async/go
+              (async/>! out "PING")
+              (when (= "PONG" (async/<! in))
+                (async/close! out))))))
 ```
 
 If you close the :out channel, the socket will be closed, this is true

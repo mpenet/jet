@@ -164,13 +164,13 @@
                             (async/go
                               (when (= "PING" (async/<! in))
                                 (async/>! out "PONG"))))}}
-        (ws/ws-client "ws://localhost:4347/"
-                      (fn [{:keys [in out ctrl]}]
-                        (async/go
-                          (async/>! out "PING")
-                          (when (= "PONG" (async/<! in))
-                            (async/close! out)
-                            (deliver p true)))))
+        (ws/connect! "ws://localhost:4347/"
+                     (fn [{:keys [in out ctrl]}]
+                       (async/go
+                         (async/>! out "PING")
+                         (when (= "PONG" (async/<! in))
+                           (async/close! out)
+                           (deliver p true)))))
         (is (deref p 1000 false))))))
 
 ;; (run-tests)

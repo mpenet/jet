@@ -2,6 +2,8 @@
 
 ## 0.3.0-beta1
 
+* `qbits.jet.websocket.client/ws-client` is now `qbits.jet.websocket.client/connect!`
+
 * Improved http client:
 
 ** add post/get/put/delete/trace/head sugar
@@ -15,7 +17,7 @@
 ## 0.2.0
 
 * Allow to pass factory functions for core.async channels used on
-  WebSocket objects, see run-jetty and ws-client docstrings.
+  WebSocket objects, see run-jetty and client docstrings.
 
 * Add options on HTTP and WebSocket clients
 
