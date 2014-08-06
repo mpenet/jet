@@ -93,6 +93,7 @@
            follow-redirects?
            max-redirects
            idle-timeout
+           stop-timeout
            timeout
            max-connections-per-destination
            max-requests-queued-per-destination
@@ -147,6 +148,9 @@
     (when user-agent
       (.setUserAgentField client (HttpField. "User-Agent" ^String user-agent)))
 
+    (when stop-timeout
+      (.setStopTimeout client (long stop-timeout)))
+
     (when timeout
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))
 
@@ -163,9 +167,11 @@
     (.method request (name method))
 
     (when (seq form-params)
-      (.content request (FormContentProvider. (let [f (Fields.)]
-                                                (doseq [[k v] form-params]
-                                                  (.add f (name k) v))))))
+      (.content request
+                (FormContentProvider. (let [f (Fields.)]
+                                        (doseq [[k v] form-params]
+                                          (.add f (name k) (str v)))
+                                        f))))
 
     (when body
       (.content request (encode-body body)))
@@ -180,20 +186,24 @@
         (.onResponseContent
          (reify Response$ContentListener
            (onContent [this response bytebuffer]
-             (async/put! content-ch (decode-body bytebuffer as)))))
+             (async/go (async/>! content-ch (decode-body bytebuffer as))))))
 
         (.send
          (reify Response$CompleteListener
            (onComplete [this result]
-             (async/put! ch (if (.isSucceeded ^Result result)
-                              (result->response result content-ch)
-                              (.getRequestFailure result)))))))
+             (async/go
+               (async/>! ch
+                         (if (.isSucceeded ^Result result)
+                           (result->response result content-ch)
+                           (.getRequestFailure result))))))))
     ch))
 
 
-;; (prn (-> (request {:url "http://localhost:8000/"
-;;                    :method :get
-;;                    :body (java.nio.file.Path. (java.io.File. "/home/mpenet/.bash_history"))
+;; (prn (-> (request {:url "http://localhost:9000/"
+;;                    :method :post
+;;                    :timeout 3000
+;;                    :body nil
+;;                    :form-params {:b "foo" :a 1}
 ;;                    :as :string})
 ;;          async/<!!
 ;;          :body
