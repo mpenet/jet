@@ -6,13 +6,13 @@
 
 * Improved http client:
 
-** add post/get/put/delete/trace/head sugar
+    * add post/get/put/delete/trace/head sugar
 
-** support for post params
+    * support for post params
 
-** :as auto decoding of content to clojure ds
+    * :as auto decoding of content to clojure ds
 
-** tests now run on jet http client (removed clj-http dependency)
+    * tests now run on jet http client (removed clj-http dependency)
 
 ## 0.2.0
 
