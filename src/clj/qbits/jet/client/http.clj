@@ -22,6 +22,7 @@
     Request
     Response
     Result)
+   (java.util.concurrent TimeUnit)
    (java.nio ByteBuffer)))
 
 (defn byte-buffer->bytes
@@ -84,11 +85,13 @@
   [{:keys [url method scheme server-name server-port uri
            query-string form-parms
            headers body file
+           accept
            address-resolution-timeout
            connect-timeout
            follow-redirects?
            max-redirects
            idle-timeout
+           timeout
            max-connections-per-destination
            max-requests-queued-per-destination
            request-buffer-size
@@ -141,6 +144,12 @@
 
     (when user-agent
       (.setUserAgentField client (HttpField. "User-Agent" ^String user-agent)))
+
+    (when timeout
+      (.timeout request (long timeout) TimeUnit/MILLISECONDS))
+
+    (when accept
+      (.accept request (into-array String [accept])))
 
     (.setRemoveIdleDestinations client remove-idle-destinations?)
     (.setDispatchIO client dispatch-io?)
