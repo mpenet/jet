@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [get])
   (:require
    [clojure.core.async :as async]
+   [qbits.jet.client.ssl :as ssl]
    [clojure.string :as string])
   (:import
    (org.eclipse.jetty.client
@@ -107,18 +108,20 @@
            remove-idle-destinations?
            dispatch-io?
            tcp-no-delay?
-           strict-event-ordering?]
+           strict-event-ordering?
+           ssl-context-factory]
     :or {method :get
          as :string
          remove-idle-destinations? true
          dispatch-io? true
          follow-redirects? true
          tcp-no-delay? true
-         strict-event-ordering? false}
+         strict-event-ordering? false
+         ssl-context-factory ssl/insecure-ssl-context-factory}
     :as r}]
   (let [ch (async/chan)
         content-ch (async/chan)
-        client (HttpClient.)
+        client (HttpClient. ssl-context-factory)
         request ^Request (.newRequest client ^String url)]
 
     (when address-resolution-timeout

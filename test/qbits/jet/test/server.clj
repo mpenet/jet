@@ -127,3 +127,5 @@
                             (async/close! out)
                             (deliver p true)))))
         (is (deref p 1000 false))))))
+
+;; (run-tests)
