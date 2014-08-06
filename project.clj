@@ -18,8 +18,7 @@
   :profiles {:1.4  {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5  {:dependencies [[org.clojure/clojure "1.5.0"]]}
              :1.6  {:dependencies [[org.clojure/clojure "1.6.0"]]}
-             :dev  {:dependencies [[codox "0.8.10"]
-                                   [clj-http "0.6.4"]]}
+             :dev  {:dependencies [[codox "0.8.10"]]}
              :test  {:dependencies []}}
   :codox {:src-dir-uri "https://github.com/mpenet/jet/blob/master/"
           :src-linenum-anchor-prefix "L"

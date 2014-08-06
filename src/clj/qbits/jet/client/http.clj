@@ -1,4 +1,5 @@
 (ns qbits.jet.client.http
+  (:refer-clojure :exclude [get])
   (:require
    [clojure.core.async :as async]
    [clojure.string :as string])
@@ -40,6 +41,7 @@
 (defn decode-body [bb as]
   (case as
     :string (byte-buffer->string bb)
+    :byte-buffer
     bb))
 
 (defrecord JetResponse [status headers body])
@@ -49,7 +51,7 @@
   (let [response (.getResponse result)]
     (JetResponse. (.getStatus response)
                   (reduce (fn [m ^HttpField h]
-                            (assoc m (.getName h) (.getValue h)))
+                            (assoc m (string/lower-case  (.getName h)) (.getValue h)))
                           {}
                           ^HttpFields (.getHeaders response))
                   content-ch)))
@@ -107,6 +109,7 @@
            tcp-no-delay?
            strict-event-ordering?]
     :or {method :get
+         as :string
          remove-idle-destinations? true
          dispatch-io? true
          follow-redirects? true
@@ -198,12 +201,41 @@
     ch))
 
 
-;; (prn (-> (request {:url "http://localhost:9000/"
-;;                    :method :post
-;;                    :timeout 3000
-;;                    :body nil
-;;                    :form-params {:b "foo" :a 1}
-;;                    :as :string})
+(defn get
+  ([url request-map]
+     (request (into {:method :get :url url}
+                    request-map)))
+  ([url]
+     (get url {})))
+
+(defn post
+  ([url request-map]
+     (request (into {:method :post :url url}
+                    request-map)))
+  ([url]
+     (post url {})))
+
+(defn put
+  ([url request-map]
+     (request (into {:method :put :url url}
+                    request-map)))
+  ([url]
+     (put url {})))
+
+(defn head
+  ([url request-map]
+     (request (into {:method :head :url url}
+                    request-map)))
+  ([url]
+     (head url {})))
+
+
+;; (prn (-> (get "http://localhost:9000/"
+;;               {
+;;                ;; :timeout 3000
+;;                ;; :body nil
+;;                ;; :form-params {:b "foo" :a 1}
+;;                :as :string})
 ;;          async/<!!
 ;;          :body
 ;;          async/<!!))
