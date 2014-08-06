@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0-beta1
+
+* Improved http client:
+
+** add post/get/put/delete/trace/head sugar
+
+** support for post params
+
+** :as auto decoding of content to clojure ds
+
+** tests now run on jet http client (removed clj-http dependency)
+
 ## 0.2.0
 
 * Allow to pass factory functions for core.async channels used on

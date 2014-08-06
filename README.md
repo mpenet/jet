@@ -23,7 +23,6 @@ Main goals are to be *lightweight*, *fast*, and *easy to use*.
 The server part started from the code of the various
 `ring-jetty9-adapters` out there.
 
-
 In the current state the server is fairly complete/stable, the
 websocket client nearly 100%, the HTTP client still at early stages.
 
@@ -43,9 +42,11 @@ jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 Add this to your dependencies:
 
 ```clojure
-[cc.qbits/jet "0.2.0"]
+[cc.qbits/jet "0.3.0-beta1"]
 ```
-## Example
+## Examples
+
+### WebSocket
 
 Here we have the equivalent of a call to run-jetty, with the first
 param as your main app ring handler (coming from whatever routing lib
@@ -100,6 +101,16 @@ The websocket client is used the same way
 
 If you close the :out channel, the socket will be closed, this is true
 for both client/server modes.
+
+
+### HTTP Client
+
+The API is nearly identical to clj-http and other clients for
+clojure. One of the major difference is that calls to the client
+return a channel that will receive the eventual response
+asynchronously.  The response is then a fairly standard ring response
+map, except the body, which is also a core.async channel (potential
+streaming/chunked response support in the future).
 
 Please check the
 [Changelog](https://github.com/mpenet/jet/blob/master/CHANGELOG.md)
