@@ -112,6 +112,44 @@ asynchronously.  The response is then a fairly standard ring response
 map, except the body, which is also a core.async channel (potential
 streaming/chunked response support in the future).
 
+See the docs for details,
+[HTTP client API docs](http://mpenet.github.io/jet/qbits.jet.client.http.html)
+[`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request)
+in particular gives an idea of the format.
+
+
+```clojure
+(use 'qbits.jet.client.http)
+(use 'clojure.core.async)
+
+;; returns a chan
+(http/get "http://graph.facebook.com/zuck")
+user> #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@731db933>
+
+;; block for the response
+(<!! (http/get "http://graph.facebook.com/zuck"))
+
+user> #qbits.jet.client.http.Response{:status 200, :headers {"content-type" "text/javascript; charset=UTF-8", "access-control-allow-origin" "*", "content-length" "173", "facebook-api-version" "v1.0", "connection" "keep-alive", "pragma" "no-cache", "expires" "Sat, 01 Jan 2000 00:00:00 GMT", "x-fb-rev" "1358170", "etag" "\"3becf5f2bb7ec39daa6bb65345d40b9f4b1db483\"", "date" "Wed, 06 Aug 2014 15:43:19 GMT", "cache-control" "private, no-cache, no-store, must-revalidate"}, :body #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@5a278fe0>}
+
+
+;; get to the body
+(-> (http/get "http://graph.facebook.com/zuck")
+    <!!
+    :body
+    <!!)
+"{\"id\":\"4\",\"first_name\":\"Mark\",\"gender\":\"male\",\"last_name\":\"Zuckerberg\",\"link\":\"https:\\/\\/www.facebook.com\\/zuck\",\"locale\":\"en_US\",\"name\":\"Mark Zuckerberg\",\"username\":\"zuck\"}"
+
+;; autodecode the body
+(-> (get "http://graph.facebook.com/zuck" {:as :json})
+         async/<!!
+         :body
+         async/<!!)
+{:id "4", :first_name "Mark", :gender "male", :last_name "Zuckerberg", :link "https://www.facebook.com/zuck", :locale "en_US", :name "Mark Zuckerberg", :username "zuck"}
+```
+
+And you can image (or read the api doc) how `post`, `put`, `delete`
+and other methods work. It's fairly standard.
+
 Please check the
 [Changelog](https://github.com/mpenet/jet/blob/master/CHANGELOG.md)
 if you are upgrading.
