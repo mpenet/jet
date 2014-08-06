@@ -52,7 +52,7 @@ Derived from ring.adapter.jetty"
       (make-websocket (in) (out) (ctrl) handler))))
 
 (defprotocol RequestMapDecoder
-  (build-request-map [r]))
+  (build-request-map [r] "Decodes request params into clojure/ring map"))
 
 (extend-protocol RequestMapDecoder
   HttpServletRequest

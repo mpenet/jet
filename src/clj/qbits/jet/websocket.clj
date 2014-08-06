@@ -12,7 +12,7 @@
    (java.nio ByteBuffer)
    (clojure.core.async.impl.channels ManyToManyChannel)))
 
-(defprotocol PWebSocket
+(defprotocol ^:no-doc PWebSocket
   (send! [this msg] "Send content to client connected to this WebSocket instance")
   (close! [this] "Close active WebSocket")
   (remote ^RemoteEndpoint [this] "Remote endpoint instance")
@@ -20,10 +20,10 @@
   (remote-addr [this] "Address of remote client")
   (idle-timeout! [this ms] "Set idle timeout on client"))
 
-(defprotocol WebSocketSend
+(defprotocol ^:no-doc WebSocketSend
   (-send! [x ^WebSocket ws] "How to encode content sent to the WebSocket clients"))
 
-(defn close-chans!
+(defn ^:no-doc close-chans!
   [& chs]
   (doseq [ch chs]
     (async/close! ch)))
@@ -108,6 +108,6 @@
   (idle-timeout! [this ms]
     (.setIdleTimeout session (long ms))))
 
-(defn make-websocket
+(defn ^:no-doc make-websocket
   [in out ctrl handler]
   (WebSocket. in out ctrl handler nil))

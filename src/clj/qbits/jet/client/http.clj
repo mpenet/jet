@@ -32,17 +32,17 @@
    (java.nio ByteBuffer)
    (java.io ByteArrayInputStream)))
 
-(defn byte-buffer->bytes
+(defn ^:no-doc byte-buffer->bytes
   [^ByteBuffer bb]
   (let [ba (byte-array (.remaining bb))]
     (.get bb ba)
     ba))
 
-(defn byte-buffer->string
+(defn ^:no-doc byte-buffer->string
   [^ByteBuffer bb]
   (String. ^bytes (byte-buffer->bytes bb) "UTF-8"))
 
-(defn decode-body [bb as]
+(defn ^:no-doc decode-body [bb as]
   (case as
     :bytes (byte-buffer->bytes bb)
     :input-stream (ByteArrayInputStream. (byte-buffer->bytes bb))
@@ -54,7 +54,7 @@
 
 (defrecord Response [status headers body])
 
-(defn result->response
+(defn ^:no-doc result->response
   [^Result result content-ch]
   (let [response (.getResponse result)]
     (Response. (.getStatus response)
