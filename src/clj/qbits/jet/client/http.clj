@@ -24,7 +24,7 @@
     Response$CompleteListener
     Response$ContentListener
     Request
-    Response
+    ;; Response
     Result)
    (java.util.concurrent TimeUnit)
    (java.nio ByteBuffer)))
@@ -45,17 +45,17 @@
     :byte-buffer
     bb))
 
-(defrecord JetResponse [status headers body])
+(defrecord Response [status headers body])
 
 (defn result->response
   [^Result result content-ch]
   (let [response (.getResponse result)]
-    (JetResponse. (.getStatus response)
-                  (reduce (fn [m ^HttpField h]
-                            (assoc m (string/lower-case  (.getName h)) (.getValue h)))
-                          {}
-                          ^HttpFields (.getHeaders response))
-                  content-ch)))
+    (Response. (.getStatus response)
+               (reduce (fn [m ^HttpField h]
+                         (assoc m (string/lower-case  (.getName h)) (.getValue h)))
+                       {}
+                       ^HttpFields (.getHeaders response))
+               content-ch)))
 
 (defprotocol PRequest
   (encode-body [x]))
@@ -225,6 +225,13 @@
   ([url]
      (put url {})))
 
+(defn delete
+  ([url request-map]
+     (request (into {:method :delete :url url}
+                    request-map)))
+  ([url]
+     (delete url {})))
+
 (defn head
   ([url request-map]
      (request (into {:method :head :url url}
@@ -232,6 +239,12 @@
   ([url]
      (head url {})))
 
+(defn trace
+  ([url request-map]
+     (request (into {:method :trace :url url}
+                    request-map)))
+  ([url]
+     (trace url {})))
 
 ;; (prn (-> (get "http://localhost:9000/"
 ;;               {

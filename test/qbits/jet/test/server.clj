@@ -5,30 +5,40 @@
    [qbits.jet.server :refer [run-jetty]]
    [qbits.jet.client.websocket :as ws]
    [qbits.jet.client.http :as http]
-   [clojure.core.async :as async])
+   [clojure.core.async :as async]
+   [ring.middleware.params :as ring-params]
+   [ring.middleware.keyword-params :as ring-kw-params])
   (:import
    (org.eclipse.jetty.util.thread QueuedThreadPool)
    (org.eclipse.jetty.server Server Request)
    (org.eclipse.jetty.server.handler AbstractHandler)))
 
-(defn- hello-world [request]
+(defn hello-world [request]
   {:status  200
    :headers {"Content-Type" "text/plain"}
    :body    "Hello World"})
 
-(defn- content-type-handler [content-type]
+(defn content-type-handler [content-type]
   (constantly
    {:status  200
     :headers {"Content-Type" content-type}
     :body    ""}))
 
-(defn- echo-handler [request]
+(defn echo-handler [request]
   {:status 200
    :headers {"request-map" (str (dissoc request :body))}
    :body (:body request)})
 
+(defn request-map->edn
+  [response]
+  (-> response (get-in [:headers "request-map"]) read-string))
+
+
 (defmacro with-server [app options & body]
-  `(let [server# (run-jetty ~app ~(assoc options :join? false))]
+  `(let [server# (run-jetty (-> ~app
+                                ring-kw-params/wrap-keyword-params
+                                ring-params/wrap-params)
+                            ~(assoc options :join? false))]
      (try
        ~@body
        (finally (.stop server#)))))
@@ -98,7 +108,7 @@
       (let [response (async/<!! (http/post "http://localhost:4347/foo/bar/baz?surname=jones&age=123" {:body "hello"}))]
         (is (= (:status response) 200))
         (is (= (-> response :body async/<!!) "hello"))
-        (let [request-map (read-string (get-in response [:headers "request-map"]))]
+        (let [request-map (request-map->edn response)]
           (is (= (:query-string request-map) "surname=jones&age=123"))
           (is (= (:uri request-map) "/foo/bar/baz"))
           (is (= (:content-length request-map) 5))
@@ -110,6 +120,33 @@
           (is (= (:server-name request-map) "localhost"))
           (is (= (:server-port request-map) 4347))
           (is (= (:ssl-client-cert request-map) nil))))))
+
+ (testing "POST+PUT requests"
+    (with-server echo-handler
+      {:port 4347}
+      (let [response (async/<!! (http/post "http://localhost:4347"
+                                           {:form-params {:foo "bar"}}))
+            request-map (request-map->edn response)]
+        ;; TODO post files
+        (is (= "bar" (get-in request-map [:form-params "foo"]))))
+
+      (let [response (async/<!! (http/put "http://localhost:4347"
+                                          {:form-params {:foo "bar"}}))
+            request-map (request-map->edn response)]
+        (is (= "bar" (get-in request-map [:form-params "foo"]))))))
+
+ (testing "HEAD+DELETE+TRACE requests"
+    (with-server echo-handler
+      {:port 4347}
+      (let [response (async/<!! (http/head "http://localhost:4347"))
+            request-map (request-map->edn response)]
+        (is (= :head (:request-method request-map))))
+      (let [response (async/<!! (http/delete "http://localhost:4347"))
+            request-map (request-map->edn response)]
+        (is (= :delete (:request-method request-map))))
+      (let [response (async/<!! (http/trace "http://localhost:4347"))
+            request-map (request-map->edn response)]
+        (is (= :trace (:request-method request-map))))))
 
   (testing "WebSocket ping-pong"
     (let [p (promise)]
