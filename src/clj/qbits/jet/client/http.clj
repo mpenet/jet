@@ -4,7 +4,8 @@
    [clojure.core.async :as async]
    [qbits.jet.client.ssl :as ssl]
    [clojure.string :as string]
-   [cheshire.core :as json])
+   [cheshire.core :as json]
+   [clojure.xml :as xml])
   (:import
    (org.eclipse.jetty.client
     HttpClient
@@ -28,7 +29,8 @@
     ;; Response
     Result)
    (java.util.concurrent TimeUnit)
-   (java.nio ByteBuffer)))
+   (java.nio ByteBuffer)
+   (java.io ByteArrayInputStream)))
 
 (defn byte-buffer->bytes
   [^ByteBuffer bb]
@@ -42,10 +44,13 @@
 
 (defn decode-body [bb as]
   (case as
+    :bytes (byte-buffer->bytes bb)
+    :input-stream (ByteArrayInputStream. (byte-buffer->bytes bb))
     :string (byte-buffer->string bb)
     :json (json/parse-string (byte-buffer->string bb) true)
     :json-str (json/parse-string (byte-buffer->string bb) false)
-    :byte-buffer bb))
+    :xml (xml/parse (ByteArrayInputStream. (byte-buffer->bytes bb)))
+    bb))
 
 (defrecord Response [status headers body])
 
