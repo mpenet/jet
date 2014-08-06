@@ -145,6 +145,9 @@ user> #qbits.jet.client.http.Response{:status 200, :headers {"content-type" "tex
          :body
          async/<!!)
 {:id "4", :first_name "Mark", :gender "male", :last_name "Zuckerberg", :link "https://www.facebook.com/zuck", :locale "en_US", :name "Mark Zuckerberg", :username "zuck"}
+
+;; POST
+(post "http://foo.com" {:form-params {:foo "bar :baz 1}})
 ```
 
 And you can image (or read the api doc) how `post`, `put`, `delete`
