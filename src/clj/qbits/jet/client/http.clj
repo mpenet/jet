@@ -6,12 +6,14 @@
    (org.eclipse.jetty.client
     HttpClient
     HttpRequest)
+   (org.eclipse.jetty.util Fields)
    (org.eclipse.jetty.client.util
     StringContentProvider
     BytesContentProvider
     ByteBufferContentProvider
     InputStreamContentProvider
-    PathContentProvider)
+    PathContentProvider
+    FormContentProvider)
    (org.eclipse.jetty.http
     HttpFields
     HttpField)
@@ -83,7 +85,7 @@
 
 (defn request
   [{:keys [url method scheme server-name server-port uri
-           query-string form-parms
+           query-string form-params
            headers body file
            accept
            address-resolution-timeout
@@ -149,7 +151,7 @@
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))
 
     (when accept
-      (.accept request (into-array String [accept])))
+      (.accept request (into-array String [(name accept)])))
 
     (.setRemoveIdleDestinations client remove-idle-destinations?)
     (.setDispatchIO client dispatch-io?)
@@ -159,6 +161,11 @@
 
     (.start client)
     (.method request (name method))
+
+    (when (seq form-params)
+      (.content request (FormContentProvider. (let [f (Fields.)]
+                                                (doseq [[k v] form-params]
+                                                  (.add f (name k) v))))))
 
     (when body
       (.content request (encode-body body)))
