@@ -80,18 +80,18 @@
           (close! this))))
     (handler {:in in :out out :ctrl ctrl :ws this}))
   (onWebSocketError [this e]
-    (async/go (async/>! ctrl [::error e]))
+    (async/put! ctrl [::error e])
     (close-chans! in out ctrl))
 
   (onWebSocketClose [this code reason]
     (set! session nil)
-    (async/go (async/>! ctrl [::close code reason]))
+    (async/put! ctrl [::close code reason])
     (close-chans! in out ctrl))
 
   (onWebSocketText [this message]
-    (async/go (async/>! in message)))
+    (async/put! in message))
   (onWebSocketBinary [this payload offset len]
-    (async/go (async/>! in (WebSocketBinaryFrame. payload offset len))))
+    (async/put! in (WebSocketBinaryFrame. payload offset len)))
 
   PWebSocket
   (remote [this]

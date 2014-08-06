@@ -186,16 +186,15 @@
         (.onResponseContent
          (reify Response$ContentListener
            (onContent [this response bytebuffer]
-             (async/go (async/>! content-ch (decode-body bytebuffer as))))))
+             (async/put! content-ch (decode-body bytebuffer as)))))
 
         (.send
          (reify Response$CompleteListener
            (onComplete [this result]
-             (async/go
-               (async/>! ch
+             (async/put! ch
                          (if (.isSucceeded ^Result result)
                            (result->response result content-ch)
-                           (.getRequestFailure result))))))))
+                           (.getRequestFailure result)))))))
     ch))
 
 
