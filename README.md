@@ -151,7 +151,8 @@ user> #qbits.jet.client.http.Response{:status 200, :headers {"content-type" "tex
 ```
 
 And you can image (or read the api doc) how `post`, `put`, `delete`
-and other methods work. It's fairly standard.
+and other methods work. It's fairly standard. All the "method"
+functions are just api sugar around [`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request).
 
 Please check the
 [Changelog](https://github.com/mpenet/jet/blob/master/CHANGELOG.md)
