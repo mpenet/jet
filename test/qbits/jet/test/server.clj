@@ -176,10 +176,10 @@
  (testing "Auth tests"
    (let [u "test-user"
          pwd "test-pwd"]
-     (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
-                                      u pwd)
-                              {:auth {:type :digest :user u :password pwd :realm "me@kennethreitz.com"}})
-                    async/<!! prn)
+     ;; (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
+     ;;                                  u pwd)
+     ;;                          {:auth {:type :digest :user u :password pwd :realm "me@kennethreitz.com"}})
+     ;;                async/<!! prn)
      (is (= 200 (-> (http/get (format "http://httpbin.org/basic-auth/%s/%s"
                                       u pwd)
                               {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
