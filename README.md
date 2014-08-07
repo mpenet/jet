@@ -172,15 +172,14 @@ user> {:id "4",
 (post "http://foo.com" {:form-params {:foo "bar" :baz 1}})
 ```
 
-And you can image (or read the api doc) how `post`, `put`, `delete`
+And you can imagine (or read the api doc) how `post`, `put`, `delete`
 and other methods work. It's fairly standard. All the "method"
 functions are just api sugar around [`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request).
 
-
 This is the easy way of using the Http Client, you can also go further
-and take advantage of the fact that jetty9 client splits the client
+and take advantage of the fact that jetty9 HTTP client splits the client
 and request part of the process. You can create/setup a single client
-and use it for many requests.
+and re-use it for many requests.
 
 To quote the Jetty9 documentation:
 
