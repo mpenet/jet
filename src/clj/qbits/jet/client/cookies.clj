@@ -10,7 +10,7 @@
   []
   (HttpCookieStore.))
 
-(defn decode-cookie
+(defn ^:no-doc decode-cookie
   [^HttpCookie cookie]
   (->> {:name (.getName cookie)
         :comment (.getComment cookie)
@@ -29,7 +29,7 @@
                       (assoc m k v)))
                   {})))
 
-(defn ^HttpCookie encode-cookie
+(defn ^:no-doc ^HttpCookie encode-cookie
   [{:keys [name domain value path max-age
            comment comment-url version
            secure? http-only? discard?
