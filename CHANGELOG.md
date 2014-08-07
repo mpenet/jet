@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0-beta2
+
+* Add cookie/cookie-store support
+
 ## 0.3.0-beta1
 
 * `qbits.jet.websocket.client/ws-client` is now `qbits.jet.websocket.client/connect!`
