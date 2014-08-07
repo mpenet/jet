@@ -3,6 +3,7 @@
   (:require
    [clojure.core.async :as async]
    [qbits.jet.client.ssl :as ssl]
+   [qbits.jet.client.cookies :as cookies]
    [clojure.string :as string]
    [cheshire.core :as json]
    [clojure.xml :as xml])
@@ -111,6 +112,8 @@
            response-buffer-size
            scheduler
            user-agent
+           cookie-store
+           cookies
            as
            remove-idle-destinations?
            dispatch-io?
@@ -163,6 +166,15 @@
 
     (when stop-timeout
       (.setStopTimeout client (long stop-timeout)))
+
+    (when cookie-store
+      (.setCookieStore client cookie-store))
+
+    (when cookies
+      (.setCookieStore client
+                       (reduce (fn [cs cookie]
+                                 (cookies/add-cookie! url cs cookie))
+                               (cookies/cookie-store))))
 
     (when timeout
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))
@@ -253,12 +265,7 @@
   ([url]
      (trace url {})))
 
-;; (prn (-> (get "http://graph.facebook.com/zuck"
-;;               {
-;;                ;; :timeout 3000
-;;                ;; :body nil
-;;                ;; :form-params {:b "foo" :a 1}
-;;                :as :json})
+;; (clojure.pprint/pprint (-> (get "http://graph.facebook.com/zuck")
 ;;          async/<!!
-;;          :body
-;;          async/<!!))
+
+;;          ))
