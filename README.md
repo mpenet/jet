@@ -40,7 +40,7 @@ jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 Add this to your dependencies:
 
 ```clojure
-[cc.qbits/jet "0.3.0-beta2"]
+[cc.qbits/jet "0.3.0-beta3"]
 ```
 ## Examples
 

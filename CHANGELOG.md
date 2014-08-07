@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0-beta3
+
+* add basic auth
+
+* split client/request objects, allowing client reuse in requests
+
 ## 0.3.0-beta2
 
 * Add cookie/cookie-store support
