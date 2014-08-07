@@ -156,6 +156,17 @@
    (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json-str})
                      async/<!! :body async/<!! (get "username")))))
 
+ (testing "cookies"
+   (with-server echo-handler
+     {:port 4347}
+     (is (= "foo=bar; something=else"
+            (get-in (-> (http/get "http://localhost:4347"
+                                  {:cookies [{:name "foo" :value "bar" :max-age 5}
+                                             {:name "something" :value "else" :max-age 5}]})
+                        async/<!!
+                        request-map->edn)
+                    [:headers "cookie"])))))
+
   (testing "WebSocket ping-pong"
     (let [p (promise)]
       (with-server nil
