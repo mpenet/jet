@@ -183,11 +183,24 @@ and use it for many requests.
 
 To quote the Jetty9 documentation:
 
-> HttpClient provides an efficient, asynchronous, non-blocking implementation to perform HTTP requests to a server through a simple API that offers also blocking semantic.
-> HttpClient provides easy-to-use methods such as GET(String) that allow to perform HTTP requests in a one-liner, but also gives the ability to fine tune the configuration of requests via newRequest(URI).
-> HttpClient acts as a central configuration point for network parameters (such as idle timeouts) and HTTP parameters (such as whether to follow redirects).
-> HttpClient transparently pools connections to servers, but allows direct control of connections for cases where this is needed.
-> HttpClient also acts as a central configuration point for cookies, via getCookieStore().
+> HttpClient provides an efficient, asynchronous, non-blocking
+> implementation to perform HTTP requests to a server through a simple
+> API that offers also blocking semantic.
+
+> HttpClient provides easy-to-use methods such as GET(String) that
+> allow to perform HTTP requests in a one-liner, but also gives the
+> ability to fine tune the configuration of requests via
+> newRequest(URI).
+
+> HttpClient acts as a central configuration point for network
+> parameters (such as idle timeouts) and HTTP parameters (such as
+> whether to follow redirects).
+
+> HttpClient transparently pools connections to servers, but allows
+> direct control of connections for cases where this is needed.
+
+> HttpClient also acts as a central configuration point for cookies,
+> via getCookieStore().
 
 
 This is also accessible from clojure:
