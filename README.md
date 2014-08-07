@@ -207,8 +207,8 @@ This is also accessible from clojure:
 ```clojure
 (def c (client {...}))
 
-(get "http://foo.com" {:client ...})
-(get "http://foo.com/bar" {:client ...})
+(get "http://foo.com" {:client c ...})
+(get "http://foo.com/bar" {:client c ...})
 
 ```
 
