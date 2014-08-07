@@ -64,7 +64,6 @@
   "Adds cookies for a destination URI to the cookie store"
   [^HttpCookieStore cookie-store uri cookies]
   (let [uri (URI. uri)]
-    (prn cookies)
     (doseq [cookie cookies]
       (.add cookie-store uri (encode-cookie cookie)))
     cookie-store))

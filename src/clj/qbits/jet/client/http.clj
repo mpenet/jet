@@ -173,8 +173,9 @@
     (when cookies
       (.setCookieStore client
                        (reduce (fn [cs cookie]
-                                 (cookies/add-cookie! url cs cookie))
-                               (cookies/cookie-store))))
+                                 (cookies/add-cookie! cs url cookie))
+                               (cookies/cookie-store)
+                               cookies)))
 
     (when timeout
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))
