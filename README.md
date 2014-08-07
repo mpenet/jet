@@ -175,6 +175,30 @@ And you can image (or read the api doc) how `post`, `put`, `delete`
 and other methods work. It's fairly standard. All the "method"
 functions are just api sugar around [`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request).
 
+
+This is the easy way of using the Http Client, you can also go further
+and take advantage of the fact that jetty9 client splits the client
+and request part of the process. You can create/setup a single client
+and use it for many requests.
+
+To quote the Jetty9 documentation:
+
+> HttpClient provides an efficient, asynchronous, non-blocking implementation to perform HTTP requests to a server through a simple API that offers also blocking semantic.
+HttpClient provides easy-to-use methods such as GET(String) that allow to perform HTTP requests in a one-liner, but also gives the ability to fine tune the configuration of requests via newRequest(URI).
+HttpClient acts as a central configuration point for network parameters (such as idle timeouts) and HTTP parameters (such as whether to follow redirects).
+HttpClient transparently pools connections to servers, but allows direct control of connections for cases where this is needed.
+HttpClient also acts as a central configuration point for cookies, via getCookieStore().
+
+
+This is also accessible from clojure:
+```clojure
+(def c (client {...}))
+
+(get "http://foo.com" {:client ...})
+(get "http://foo.com/bar" {:client ...})
+
+```
+
 Please check the
 [Changelog](https://github.com/mpenet/jet/blob/master/CHANGELOG.md)
 if you are upgrading.
