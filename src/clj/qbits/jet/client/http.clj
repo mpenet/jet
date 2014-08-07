@@ -3,6 +3,7 @@
   (:require
    [clojure.core.async :as async]
    [qbits.jet.client.ssl :as ssl]
+   [qbits.jet.client.auth :as auth]
    [qbits.jet.client.cookies :as cookies]
    [clojure.string :as string]
    [cheshire.core :as json]
@@ -114,6 +115,8 @@
            user-agent
            cookie-store
            cookies
+           digest-auth
+           basic-auth
            as
            remove-idle-destinations?
            dispatch-io?
@@ -176,6 +179,16 @@
                                  (cookies/add-cookie! cs url cookie))
                                (cookies/cookie-store)
                                cookies)))
+
+    (when digest-auth
+      (let [{:keys [user password realm]} digest-auth]
+        (-> (.getAuthenticationStore client)
+            (.addAuthentication (auth/digest-auth url realm user password)))))
+
+    (when basic-auth
+      (let [{:keys [user password realm]} basic-auth]
+        (-> (.getAuthenticationStore client)
+            (.addAuthentication (auth/basic-auth url realm user password)))))
 
     (when timeout
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))

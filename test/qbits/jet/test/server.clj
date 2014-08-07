@@ -167,6 +167,30 @@
                         request-map->edn)
                     [:headers "cookie"])))))
 
+ (testing "Auth tests"
+   (let [u "test-user"
+         pwd "test-pwd"]
+     ;; (-> (http/get (format "http://httpbin.org/digest-auth/foo/%s/%s"
+     ;;                                  u pwd)
+     ;;                          {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
+     ;;                async/<!! prn)
+     (is (= 200 (-> (http/get (format "http://httpbin.org/basic-auth/%s/%s"
+                                      u pwd)
+                              {:basic-auth {:user u :password pwd :realm "Fake Realm"}})
+                    async/<!! :status)))
+
+     (is (= 200 (-> (http/get (format "https://httpbin.org/basic-auth/%s/%s"
+                                      u pwd)
+                              {:basic-auth {:user u :password pwd :realm "Fake Realm"}})
+                    async/<!! :status)))
+
+     ;; (is (= 200 (-> (http/get (format "http://httpbin.org/digest-auth/foo/%s/%s"
+     ;;                                  u pwd)
+     ;;                          {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
+     ;;                async/<!! :status)))
+
+     ))
+
   (testing "WebSocket ping-pong"
     (let [p (promise)]
       (with-server nil
