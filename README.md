@@ -112,7 +112,8 @@ streaming/chunked response support in the future).
 
 See the docs for details,
 [HTTP client API docs](http://mpenet.github.io/jet/qbits.jet.client.http.html)
-[`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request)
+[`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request) &
+[`qbits.jet.client.http/client`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-client) (the former builds on the later).
 in particular gives an idea of the format.
 
 
