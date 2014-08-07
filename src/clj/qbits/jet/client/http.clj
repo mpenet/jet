@@ -95,100 +95,113 @@
   (encode-body [x]
     (throw (ex-info "Body content no supported by encoder"))))
 
+(defn ^HttpClient client
+  ([{:keys [url
+            address-resolution-timeout
+            connect-timeout
+            follow-redirects?
+            max-redirects
+            idle-timeout
+            stop-timeout
+            max-connections-per-destination
+            max-requests-queued-per-destination
+            request-buffer-size
+            response-buffer-size
+            scheduler
+            user-agent
+            cookie-store
+            cookies
+            digest-auth
+            basic-auth
+            remove-idle-destinations?
+            dispatch-io?
+            tcp-no-delay?
+            strict-event-ordering?
+            ssl-context-factory]
+     :or {remove-idle-destinations? true
+          dispatch-io? true
+          follow-redirects? true
+          tcp-no-delay? true
+          strict-event-ordering? false
+          ssl-context-factory ssl/insecure-ssl-context-factory}
+     :as r}]
+     (let [client (HttpClient. ssl-context-factory)]
+
+       (when address-resolution-timeout
+         (.setAddressResolutionTimeout client (long address-resolution-timeout)))
+
+       (when connect-timeout
+         (.setConnectTimeout client (long connect-timeout)))
+
+       (when max-redirects
+         (.setMaxRedirects client (int max-redirects)))
+
+       (when idle-timeout
+         (.setIdleTimeout client (long idle-timeout)))
+
+       (when max-connections-per-destination
+         (.setMaxConnectionsPerDestination client (int max-connections-per-destination)))
+
+       (when max-requests-queued-per-destination
+         (.setMaxRequestsQueuedPerDestination client (int max-requests-queued-per-destination)))
+
+       (when request-buffer-size
+         (.setRequestBufferSize client (int request-buffer-size)))
+
+       (when response-buffer-size
+         (.setResponseBufferSize client (int response-buffer-size)))
+
+       (when scheduler
+         (.setScheduler client scheduler))
+
+       (when user-agent
+         (.setUserAgentField client (HttpField. "User-Agent" ^String user-agent)))
+
+       (when stop-timeout
+         (.setStopTimeout client (long stop-timeout)))
+
+       (when cookie-store
+         (.setCookieStore client cookie-store))
+
+       (when cookies
+         (.setCookieStore client
+                          (reduce (fn [cs cookie]
+                                    (cookies/add-cookie! cs url cookie))
+                                  (cookies/cookie-store)
+                                  cookies)))
+
+       (when digest-auth
+         (let [{:keys [user password realm]} digest-auth]
+           (-> (.getAuthenticationStore client)
+               (.addAuthentication (auth/digest-auth url realm user password)))))
+
+       (when basic-auth
+         (let [{:keys [user password realm]} basic-auth]
+           (-> (.getAuthenticationStore client)
+               (.addAuthentication (auth/basic-auth url realm user password)))))
+
+       (.setRemoveIdleDestinations client remove-idle-destinations?)
+       (.setDispatchIO client dispatch-io?)
+       (.setFollowRedirects client follow-redirects?)
+       (.setStrictEventOrdering client strict-event-ordering?)
+       (.setTCPNoDelay client tcp-no-delay?)
+
+       (.start client)
+       client))
+  ([] (client {})))
+
 (defn request
-  [{:keys [url method scheme server-name server-port uri
-           query-string form-params
-           headers body file
+  [{:keys [url method query-string form-params headers body
            accept
-           address-resolution-timeout
-           connect-timeout
-           follow-redirects?
-           max-redirects
-           idle-timeout
-           stop-timeout
-           timeout
-           max-connections-per-destination
-           max-requests-queued-per-destination
-           request-buffer-size
-           response-buffer-size
-           scheduler
-           user-agent
-           cookie-store
-           cookies
-           digest-auth
-           basic-auth
            as
-           remove-idle-destinations?
-           dispatch-io?
-           tcp-no-delay?
-           strict-event-ordering?
-           ssl-context-factory]
+           timeout]
     :or {method :get
-         as :string
-         remove-idle-destinations? true
-         dispatch-io? true
-         follow-redirects? true
-         tcp-no-delay? true
-         strict-event-ordering? false
-         ssl-context-factory ssl/insecure-ssl-context-factory}
-    :as r}]
+         as :string}
+    :as request-map}]
   (let [ch (async/chan)
         content-ch (async/chan)
-        client (HttpClient. ssl-context-factory)
+        ^HttpClient client (or (:client request-map) (client request-map))
         request ^Request (.newRequest client ^String url)]
-
-    (when address-resolution-timeout
-      (.setAddressResolutionTimeout client (long address-resolution-timeout)))
-
-    (when connect-timeout
-      (.setConnectTimeout client (long connect-timeout)))
-
-    (when max-redirects
-      (.setMaxRedirects client (int max-redirects)))
-
-    (when idle-timeout
-      (.setIdleTimeout client (long idle-timeout)))
-
-    (when max-connections-per-destination
-      (.setMaxConnectionsPerDestination client (int max-connections-per-destination)))
-
-    (when max-requests-queued-per-destination
-      (.setMaxRequestsQueuedPerDestination client (int max-requests-queued-per-destination)))
-
-    (when request-buffer-size
-      (.setRequestBufferSize client (int request-buffer-size)))
-
-    (when response-buffer-size
-      (.setResponseBufferSize client (int response-buffer-size)))
-
-    (when scheduler
-      (.setScheduler client scheduler))
-
-    (when user-agent
-      (.setUserAgentField client (HttpField. "User-Agent" ^String user-agent)))
-
-    (when stop-timeout
-      (.setStopTimeout client (long stop-timeout)))
-
-    (when cookie-store
-      (.setCookieStore client cookie-store))
-
-    (when cookies
-      (.setCookieStore client
-                       (reduce (fn [cs cookie]
-                                 (cookies/add-cookie! cs url cookie))
-                               (cookies/cookie-store)
-                               cookies)))
-
-    (when digest-auth
-      (let [{:keys [user password realm]} digest-auth]
-        (-> (.getAuthenticationStore client)
-            (.addAuthentication (auth/digest-auth url realm user password)))))
-
-    (when basic-auth
-      (let [{:keys [user password realm]} basic-auth]
-        (-> (.getAuthenticationStore client)
-            (.addAuthentication (auth/basic-auth url realm user password)))))
 
     (when timeout
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))
@@ -196,13 +209,6 @@
     (when accept
       (.accept request (into-array String [(name accept)])))
 
-    (.setRemoveIdleDestinations client remove-idle-destinations?)
-    (.setDispatchIO client dispatch-io?)
-    (.setFollowRedirects client follow-redirects?)
-    (.setStrictEventOrdering client strict-event-ordering?)
-    (.setTCPNoDelay client tcp-no-delay?)
-
-    (.start client)
     (.method request (name method))
 
     (when (seq form-params)
@@ -278,6 +284,10 @@
                     request-map)))
   ([url]
      (trace url {})))
+
+;; (def c (client {:url "http://graph.facebook.com/zuck"}))
+
+;; (time (async/<!! (get "http://graph.facebook.com/zuck" {:client c})))
 
 ;; (clojure.pprint/pprint (-> (get "http://graph.facebook.com/zuck")
 ;;          async/<!!

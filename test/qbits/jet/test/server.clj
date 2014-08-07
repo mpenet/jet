@@ -167,13 +167,19 @@
                         request-map->edn)
                     [:headers "cookie"])))))
 
+ (testing "standalone client"
+   (with-server echo-handler
+     {:port 4347}
+     (let [c (http/client)]
+       (is (= 200 (:status (async/<!! (http/get c {:url "http://localhost:4347"}))))))))
+
  (testing "Auth tests"
    (let [u "test-user"
          pwd "test-pwd"]
-     ;; (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
-     ;;                                  u pwd)
-     ;;                          {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
-     ;;                async/<!! prn)
+     (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
+                                      u pwd)
+                              {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
+                    async/<!! prn)
      (is (= 200 (-> (http/get (format "http://httpbin.org/basic-auth/%s/%s"
                                       u pwd)
                               {:basic-auth {:user u :password pwd :realm "Fake Realm"}})
