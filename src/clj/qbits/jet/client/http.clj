@@ -95,6 +95,21 @@
   (encode-body [x]
     (throw (ex-info "Body content no supported by encoder"))))
 
+(defn ^:no-doc set-cookies!
+  [client url cookies]
+  (let [cs (cookies/add-cookies! (or (.getCookieStore client)
+                                     (cookies/cookie-store))
+                                 url cookies)]
+    (.setCookieStore client cs)))
+
+(defn ^:no-doc set-auth!
+  [client url {:keys [type user password realm]}]
+  (.addAuthentication
+   (.getAuthenticationStore client)
+   (case type
+     :digest (auth/digest-auth url realm user password)
+     :basic (auth/basic-auth url realm user password))))
+
 (defn ^HttpClient client
   ([{:keys [url
             address-resolution-timeout
@@ -111,8 +126,7 @@
             user-agent
             cookie-store
             cookies
-            digest-auth
-            basic-auth
+            auth
             remove-idle-destinations?
             dispatch-io?
             tcp-no-delay?
@@ -164,21 +178,10 @@
          (.setCookieStore client cookie-store))
 
        (when cookies
-         (.setCookieStore client
-                          (reduce (fn [cs cookie]
-                                    (cookies/add-cookie! cs url cookie))
-                                  (cookies/cookie-store)
-                                  cookies)))
+         (set-cookies! client url cookies))
 
-       (when digest-auth
-         (let [{:keys [user password realm]} digest-auth]
-           (-> (.getAuthenticationStore client)
-               (.addAuthentication (auth/digest-auth url realm user password)))))
-
-       (when basic-auth
-         (let [{:keys [user password realm]} basic-auth]
-           (-> (.getAuthenticationStore client)
-               (.addAuthentication (auth/basic-auth url realm user password)))))
+       (when auth
+         (set-auth! client url auth))
 
        (.setRemoveIdleDestinations client remove-idle-destinations?)
        (.setDispatchIO client dispatch-io?)
@@ -194,7 +197,8 @@
   [{:keys [url method query-string form-params headers body
            accept
            as
-           timeout]
+           timeout
+           cookies]
     :or {method :get
          as :string}
     :as request-map}]
@@ -226,6 +230,9 @@
 
     (doseq [[k v] query-string]
       (.param request (name k) v))
+
+    (when cookies
+      (set-cookies! client url cookies))
 
     (-> request
         (.onResponseContent
