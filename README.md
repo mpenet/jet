@@ -6,8 +6,6 @@
 Jet is a server + clients library to interact/use jetty9 from clojure
 using core.async channels.
 
-Main goals are to be *lightweight*, *fast*, and *easy to use*.
-
 ## What's in the box?
 
 * **ring adapter** running on jetty9
