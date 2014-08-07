@@ -96,14 +96,14 @@
     (throw (ex-info "Body content no supported by encoder"))))
 
 (defn ^:no-doc set-cookies!
-  [client url cookies]
+  [^HttpClient client url cookies]
   (let [cs (cookies/add-cookies! (or (.getCookieStore client)
                                      (cookies/cookie-store))
                                  url cookies)]
     (.setCookieStore client cs)))
 
 (defn ^:no-doc set-auth!
-  [client url {:keys [type user password realm]}]
+  [^HttpClient client url {:keys [type user password realm]}]
   (.addAuthentication
    (.getAuthenticationStore client)
    (case type
@@ -198,14 +198,15 @@
            accept
            as
            timeout
-           cookies]
+           cookies
+           auth]
     :or {method :get
          as :string}
     :as request-map}]
   (let [ch (async/chan)
         content-ch (async/chan)
-        ^HttpClient client (or (:client request-map) (client request-map))
-        request ^Request (.newRequest client ^String url)]
+        ^HttpClient cl (or (:client request-map) (client request-map))
+        request ^Request (.newRequest cl ^String url)]
 
     (when timeout
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))
@@ -231,8 +232,14 @@
     (doseq [[k v] query-string]
       (.param request (name k) v))
 
-    (when cookies
-      (set-cookies! client url cookies))
+    ;; don't do this again if we had no client supplied, as it's been
+    ;; done already upstream
+    (when (:client request-map)
+      (when cookies
+        (set-cookies! cl url cookies))
+
+      (when auth
+        (set-auth! cl url auth)))
 
     (-> request
         (.onResponseContent
@@ -294,7 +301,8 @@
 
 ;; (def c (client {:url "http://graph.facebook.com/zuck"}))
 
-;; (time (async/<!! (get "http://graph.facebook.com/zuck" {:client c})))
+;; (time (async/<!! (get "http://graph.facebook.com/zuck" ;; {:client c}
+;;                       )))
 
 ;; (clojure.pprint/pprint (-> (get "http://graph.facebook.com/zuck")
 ;;          async/<!!
