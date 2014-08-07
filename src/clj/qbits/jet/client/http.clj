@@ -233,7 +233,7 @@
              (async/put! ch
                          (if (.isSucceeded ^Result result)
                            (result->response result content-ch)
-                           (.getRequestFailure result)))))))
+                           {:error result}))))))
     ch))
 
 

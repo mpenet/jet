@@ -170,7 +170,7 @@
  (testing "Auth tests"
    (let [u "test-user"
          pwd "test-pwd"]
-     ;; (-> (http/get (format "http://httpbin.org/digest-auth/foo/%s/%s"
+     ;; (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
      ;;                                  u pwd)
      ;;                          {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
      ;;                async/<!! prn)
@@ -184,11 +184,10 @@
                               {:basic-auth {:user u :password pwd :realm "Fake Realm"}})
                     async/<!! :status)))
 
-     ;; (is (= 200 (-> (http/get (format "http://httpbin.org/digest-auth/foo/%s/%s"
+     ;; (is (= 200 (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
      ;;                                  u pwd)
      ;;                          {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
      ;;                async/<!! :status)))
-
      ))
 
   (testing "WebSocket ping-pong"
