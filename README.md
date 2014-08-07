@@ -170,7 +170,7 @@ user> {:id "4",
        :username "zuck"}
 
 ;; POST
-(post "http://foo.com" {:form-params {:foo "bar :baz 1}})
+(post "http://foo.com" {:form-params {:foo "bar" :baz 1}})
 ```
 
 And you can image (or read the api doc) how `post`, `put`, `delete`
