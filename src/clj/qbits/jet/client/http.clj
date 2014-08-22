@@ -32,7 +32,8 @@
     Result)
    (java.util.concurrent TimeUnit)
    (java.nio ByteBuffer)
-   (java.io ByteArrayInputStream)))
+   (java.io ByteArrayInputStream)
+   (clojure.lang Keyword Sequential)))
 
 (defn ^:no-doc byte-buffer->bytes
   [^ByteBuffer bb]
@@ -67,7 +68,8 @@
                content-ch)))
 
 (defprotocol PRequest
-  (encode-body [x]))
+  (encode-body [x])
+  (encode-content-type [x]))
 
 (extend-protocol PRequest
   (Class/forName "[B")
@@ -90,10 +92,18 @@
   String
   (encode-body [x]
     (StringContentProvider. x "UTF-8"))
+  (encode-content-type [x]
+    (str "Content-Type: " x))
+
+  Sequential
+  (encode-content-type [[content-type charset]]
+    (str (encode-content-type content-type) "; charset=" (name charset)))
 
   Object
   (encode-body [x]
-    (throw (ex-info "Body content no supported by encoder"))))
+    (throw (ex-info "Body content no supported by encoder")))
+  (encode-content-type [content-type]
+    (encode-content-type (subs (str content-type) 1))))
 
 (defn ^:no-doc set-cookies!
   [^HttpClient client url cookies]
@@ -195,6 +205,7 @@
 
 (defn request
   [{:keys [url method query-string form-params headers body
+           content-type
            accept
            as
            timeout
@@ -228,6 +239,10 @@
 
     (doseq [[k v] headers]
       (.header request (name k) (str v)))
+
+    (when content-type
+      (.header request "Content-Type"
+               (name content-type)))
 
     (doseq [[k v] query-string]
       (.param request (name k) v))

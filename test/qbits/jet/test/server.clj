@@ -211,6 +211,15 @@
                          (when (= "PONG" (async/<! in))
                            (async/close! out)
                            (deliver p true)))))
-        (is (deref p 1000 false))))))
+        (is (deref p 1000 false)))))
+
+  (testing "content-type encoding"
+    (is (= "Content-Type: application/json" (http/encode-content-type :application/json)))
+    (is (= "Content-Type: application/json; charset=UTF-8" (http/encode-content-type [:application/json "UTF-8"])))
+    (is (= "Content-Type: application/json" (http/encode-content-type "application/json")))
+    (is (= "Content-Type: application/json; charset=UTF-8" (http/encode-content-type ["application/json" "UTF-8"])))))
+
+
+
 
 ;; (run-tests)
