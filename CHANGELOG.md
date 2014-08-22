@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0-beta4
+
+* add sugar over `:content-type` in http client:
+
+```clojure
+(qbits.jet.client.http/get "http://foo.com" {:content-type :application/json, ...})
+(qbits.jet.client.http/get "http://foo.com" {:content-type [:application/json "UTF-8"], ...})
+(qbits.jet.client.http/get "http://foo.com" {:content-type ["application/json" "UTF-8"], ...})
+```
+
 ## 0.3.0-beta3
 
 * add basic auth
