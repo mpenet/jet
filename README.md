@@ -15,8 +15,7 @@ using core.async channels.
 * **WebSocket Client** sharing the same principles/api than the WebSocket
   server handlers
 
-* **Asynchronous HTTP Client** with streaming support (yet to come,
-  it's incomplete still)
+* **Asynchronous HTTP Client** with streaming support (clj-http ~compatible API)
 
 The server part started from the code of the various
 `ring-jetty9-adapters` out there.
