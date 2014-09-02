@@ -55,8 +55,7 @@ handlers.
 The websocket handlers receive a map that hold 3 core.async channels
 and the underlying WebSocketAdapter instance for potential advanced uses.
 
-* `ctrl` will receive status messages such as `[::connect this]`
-`[::error e]` `[::close reason]`
+* `ctrl` will receive status messages such as `[::error e]` `[::close reason]`
 
 * `in` will receive content sent by this connected client
 
