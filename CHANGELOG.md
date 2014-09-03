@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0-beta5
+
+* add chunked response via servlet 3.1 async + core async When you
+return a core.async/chan as body the response will be chunked and
+stream to the client. Calling clojure.core.async/close! on the channel
+will complete the connection. In case of error/timeouts disconnects
+the channel will close.
+
 ## 0.3.0-beta4
 
 * add sugar over `:content-type` in http client:

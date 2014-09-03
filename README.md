@@ -10,6 +10,9 @@ using core.async channels.
 
 * **ring adapter** running on jetty9
 
+* Ring extension where core.async channel as :body in response does
+  **Chunked Transfers**
+
 * **Websocket Server** with a simple yet powerful api based on core.async
 
 * **WebSocket Client** sharing the same principles/api than the WebSocket
