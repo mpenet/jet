@@ -127,11 +127,10 @@
         (loop []
           (if-let [x (async/<! ch)]
             (do
-              (prn :x x)
               (.write w x)
-                (.flush w)
-                (.flushBuffer response)
-                (recur)))))))
+              (.flush w)
+              (.flushBuffer response)
+              (recur)))))))
 
   nil
   (write-body! [body response]
@@ -145,7 +144,7 @@
   "Update the HttpServletResponse using a response map."
   [^HttpServletResponse response
    {:keys [status headers body] :as response-map}
-   request]
+   ^HttpServletRequest request]
   (when-not response
     (throw (Exception. "Null response given.")))
   (when status
@@ -157,6 +156,7 @@
     (do
       (let [ctx (doto (.startAsync request)
                   (.setTimeout 0))]
+        ;; TODO: handle errors and client disconections
         (async/take! (set-response-body! response body )
                      (fn [_] (.complete ctx)))))
     (set-response-body! response body)))
