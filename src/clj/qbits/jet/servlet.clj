@@ -10,7 +10,9 @@
     InputStream
     FileInputStream
     OutputStreamWriter)
-   (javax.servlet AsyncContext)
+   (javax.servlet
+    AsyncContext
+    AsyncListener)
    (javax.servlet.http
     HttpServlet
     HttpServletRequest
@@ -122,14 +124,16 @@
 
   clojure.core.async.impl.channels.ManyToManyChannel
   (write-body! [ch ^HttpServletResponse response]
-    (let [^OutputStreamWriter w (-> response .getOutputStream OutputStreamWriter.)]
+    (let [^OutputStreamWriter w (-> response
+                                    .getOutputStream
+                                    OutputStreamWriter.)]
       (async/go
         (loop []
           (if-let [x (async/<! ch)]
             (do
-              (.write w x)
-              (.flush w)
-              (.flushBuffer response)
+              (.write ^OutputStreamWriter w ^String x)
+              (.flush ^OutputStreamWriter w)
+              (.flushBuffer ^HttpServletResponse response)
               (recur)))))))
 
   nil
@@ -138,7 +142,17 @@
 
   Object
   (write-body! [body _]
-    (throw (Exception. ^String (format "Unrecognized body: <%s> %s" (type body) body)))))
+    (throw (Exception. ^String (format "Unrecognized body: < %s > %s" (type body) body)))))
+
+(defn async-listener
+  [ch]
+  (reify AsyncListener
+    (onError [this e]
+      (async/close! ch))
+    (onTimeout [this e]
+      (async/close! ch))
+    (onComplete [this e]
+      (async/close! ch))))
 
 (defn update-servlet-response
   "Update the HttpServletResponse using a response map."
@@ -153,12 +167,11 @@
   (set-headers! response headers)
 
   (if (instance? clojure.core.async.impl.protocols.Channel body)
-    (do
-      (let [ctx (doto (.startAsync request)
-                  (.setTimeout 0))]
-        ;; TODO: handle errors and client disconections
-        (async/take! (set-response-body! response body )
-                     (fn [_] (.complete ctx)))))
+    (let [ctx (doto (.startAsync request)
+                (.setTimeout 0))]
+      (async/take! (set-response-body! response body)
+                   (fn [_] (.complete ctx)))
+      (.addListener ctx (async-listener body)))
     (set-response-body! response body)))
 
 (defn make-service-method
