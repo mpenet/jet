@@ -8,7 +8,9 @@
    (java.io
     File
     InputStream
-    FileInputStream)
+    FileInputStream
+    OutputStreamWriter)
+   (javax.servlet AsyncContext)
    (javax.servlet.http
     HttpServlet
     HttpServletRequest
@@ -69,12 +71,12 @@
           :servlet-context      (.getServletContext servlet)
           :servlet-context-path (.getContextPath request)}))
 
-(defn- set-status
+(defn- set-status!
   "Update a HttpServletResponse with a status code."
   [^HttpServletResponse response status]
   (.setStatus response status))
 
-(defn- set-headers
+(defn- set-headers!
   "Update a HttpServletResponse with a map of headers."
   [^HttpServletResponse response headers]
   (doseq [[key val-or-vals] headers]
@@ -86,58 +88,78 @@
   (when-let [content-type (get headers "Content-Type")]
     (.setContentType response content-type)))
 
-(defprotocol PResponse
-  (-set-body! [body response]))
+(defprotocol PBodyWritable
+  (write-body! [body response]))
 
-(defn set-body
+(defn set-response-body!
   [response body]
-  (-set-body! body response)
-  response)
+  (write-body! body response))
 
-(extend-protocol PResponse
+(extend-protocol PBodyWritable
   String
-  (-set-body! [body ^HttpServletResponse response]
+  (write-body! [body ^HttpServletResponse response]
+
     (with-open [writer (.getWriter response)]
       (.print writer body)))
 
   clojure.lang.ISeq
-  (-set-body! [body ^HttpServletResponse response]
+  (write-body! [body ^HttpServletResponse response]
     (with-open [writer (.getWriter response)]
       (doseq [chunk body]
         (.print writer (str chunk))
         (.flush writer))))
 
   InputStream
-  (-set-body! [body ^HttpServletResponse response]
+  (write-body! [body ^HttpServletResponse response]
     (with-open [^InputStream b body]
       (io/copy b (.getOutputStream response))))
 
   File
-  (-set-body! [body ^HttpServletResponse response]
+  (write-body! [body ^HttpServletResponse response]
       (let [^File f body]
         (with-open [stream (FileInputStream. f)]
-          (-set-body! stream response))))
+          (write-body! stream response))))
+
+  clojure.core.async.impl.channels.ManyToManyChannel
+  (write-body! [ch ^HttpServletResponse response]
+    (let [^OutputStreamWriter w (-> response .getOutputStream OutputStreamWriter.)]
+      (async/go
+        (loop []
+          (if-let [x (async/<! ch)]
+            (do
+              (prn :x x)
+              (.write w x)
+                (.flush w)
+                (.flushBuffer response)
+                (recur)))))))
 
   nil
-  (-set-body! [body response]
+  (write-body! [body response]
     nil)
 
   Object
-  (-set-body! [body _]
-    (throw (Exception. ^String (format "Unrecognized body: %s" body)))))
+  (write-body! [body _]
+    (throw (Exception. ^String (format "Unrecognized body: <%s> %s" (type body) body)))))
 
 (defn update-servlet-response
   "Update the HttpServletResponse using a response map."
-  {:arglists '([response response-map])}
   [^HttpServletResponse response
-   {:keys [status headers body]}]
+   {:keys [status headers body] :as response-map}
+   request]
   (when-not response
     (throw (Exception. "Null response given.")))
   (when status
-    (set-status response status))
-  (doto response
-    (set-headers headers)
-    (set-body body)))
+    (set-status! response status))
+
+  (set-headers! response headers)
+
+  (if (instance? clojure.core.async.impl.protocols.Channel body)
+    (do
+      (let [ctx (doto (.startAsync request)
+                  (.setTimeout 0))]
+        (async/take! (set-response-body! response body )
+                     (fn [_] (.complete ctx)))))
+    (set-response-body! response body)))
 
 (defn make-service-method
   "Turns a handler into a function that takes the same arguments and has the
@@ -150,7 +172,7 @@
                           (build-request-map)
                           (merge-servlet-keys servlet request response))]
       (if-let [response-map (handler request-map)]
-        (update-servlet-response response response-map)
+        (update-servlet-response response response-map request)
         (throw (NullPointerException. "Handler returned nil"))))))
 
 (defn servlet
