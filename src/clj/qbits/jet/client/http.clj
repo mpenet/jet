@@ -265,12 +265,13 @@
         (.send
          (reify Response$CompleteListener
            (onComplete [this result]
+             (async/close! content-ch)
              (async/put! ch
                          (if (.isSucceeded ^Result result)
                            (result->response result content-ch)
-                           {:error result}))))))
+                           {:error result}))
+             (async/close! ch)))))
     ch))
-
 
 (defn get
   ([url request-map]

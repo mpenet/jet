@@ -29,6 +29,17 @@
    :headers {"request-map" (str (dissoc request :body))}
    :body (:body request)})
 
+(defn chunked-handler [request]
+  (let [ch (async/chan 1)]
+    (async/go
+      (dotimes [i 5]
+        (async/<! (async/timeout 300))
+        (async/>! ch (str i)))
+      (async/close! ch))
+    {:body ch
+     :headers {"Content-Type" "foo"}
+     :status 201}))
+
 (defn request-map->edn
   [response]
   (-> response (get-in [:headers "request-map"]) read-string))
@@ -120,6 +131,19 @@
           (is (= (:server-name request-map) "localhost"))
           (is (= (:server-port request-map) 4347))
           (is (= (:ssl-client-cert request-map) nil))))))
+
+
+  (testing "chunked response"
+    (with-server chunked-handler {:port 4347}
+      (let [response (async/<!! (http/get "http://localhost:4347/"))]
+        (is (= (:status response) 201))
+        (is (= (-> response :body async/<!!) "0"))
+        (is (= (-> response :body async/<!!) "1"))
+        (is (= (-> response :body async/<!!) "2"))
+        (is (= (-> response :body async/<!!) "3"))
+        (is (= (-> response :body async/<!!) "4"))
+        (is (= (-> response :body async/<!!) nil))
+        )))
 
  (testing "POST+PUT requests"
     (with-server echo-handler
