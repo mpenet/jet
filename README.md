@@ -3,8 +3,8 @@
 
 <img src="http://i.imgur.com/gs2v6d8.gif" title="Hosted by imgur.com" align="right"/>
 
-Jet is a server + clients library to interact/use jetty9 from clojure
-using core.async channels.
+Jet is a jetty9 server + client library for clojure.
+It's a drop in adapter replacement for ring apps.
 
 ## What's in the box?
 

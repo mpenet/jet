@@ -238,3 +238,53 @@ supplied options:
     (when join?
       (.join s))
     s))
+
+
+;; (def app (fn [request]
+;;                (let [ch (async/chan 1)]
+;;                  (async/go
+;;                    (dotimes [i 5]
+;;                      (async/<! (async/timeout 300))
+;;                      (async/>! ch (str i "\n")))
+;;                    (async/close! ch))
+;;                  {:body ch
+;;                   :headers {"Content-Type" "prout"}
+;;                   :status 400})))
+
+;; (future
+;;   (run-jetty #'app
+;;    {:port 8013
+;;     ;; :websockets {"/api/entries/realtime/"
+;;     ;;              (fn [{:keys [in out ctrl ws]
+;;     ;;                    :as opts}]
+;;     ;;                ;; (prn (build-request-map ws))
+;;     ;;                (async/go
+;;     ;;                  (loop []
+;;     ;;                    (when-let [x (async/<! ctrl)]
+;;     ;;                      (println :ctrl x ctrl)
+;;     ;;                      (recur))))
+;;     ;;                (async/go
+;;     ;;                  (loop []
+;;     ;;                    (when-let [x (async/<! in)]
+;;     ;;                      (println :recv x in)
+;;     ;;                      (recur))))
+
+;;     ;;                (future (dotimes [i 3]
+;;     ;;                          (async/>!! out (str "send " i))
+;;     ;;                          (Thread/sleep 1000)))
+
+;;     ;;                ;; (close! ws)
+;;     ;;                )}
+;;     }))
+
+;; (defn handler
+;;   [request]
+;;   (let [ch (async/chan 1)]
+;;     (async/go
+;;      (dotimes [i 5]
+;;        (async/<! (async/timeout 300))
+;;        (async/>! ch (str i "\n")))
+;;      (async/close! ch))
+;;     {:body ch
+;;     :headers {"Content-Type" "prout"}
+;;     :status 400}))
