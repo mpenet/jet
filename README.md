@@ -102,14 +102,39 @@ If you close the :out channel, the socket will be closed, this is true
 for both client/server modes.
 
 
+### Server Chunked Responses
+
+If you return a core.async channel in a ring body jetty will go into
+async mode and the channel values will be streamed as chunks. If the
+channel is closed the connection ends. If an error occurs or the
+client disconnects the channel closes as well.
+
+```clojure
+(require '[clojure.core.async :as async])
+
+(defn handler
+  [request]
+  (let [ch (async/chan 1)]
+    (async/go
+     (dotimes [i 5]
+       (async/<! (async/timeout 300))
+       (async/>! ch (str i "\n")))
+     (async/close! ch))
+    {:body ch
+    :headers {"Content-Type" "prout"}
+    :status 201}))
+
+(qbits.jet.server/run-jetty handler {:port ...})
+```
+
 ### HTTP Client
 
 The API is nearly identical to clj-http and other clients for
 clojure. One of the major difference is that calls to the client
 return a channel that will receive the eventual response
 asynchronously.  The response is then a fairly standard ring response
-map, except the body, which is also a core.async channel (potential
-streaming/chunked response support in the future).
+map, except the body, which is also a core.async channel (support for
+chunked responses).
 
 See the docs for details,
 [HTTP client API docs](http://mpenet.github.io/jet/qbits.jet.client.http.html)
