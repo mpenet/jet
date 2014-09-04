@@ -97,44 +97,48 @@
   [response body]
   (write-body! body response))
 
+(defn- response->output-stream-writer
+  ^OutputStreamWriter
+  [^HttpServletResponse response]
+  (-> response .getOutputStream OutputStreamWriter.))
+
 (extend-protocol PBodyWritable
   String
-  (write-body! [body ^HttpServletResponse response]
-
-    (with-open [writer (.getWriter response)]
-      (.print writer body)))
+  (write-body! [s ^HttpServletResponse response]
+    (let [w (response->output-stream-writer response)]
+      (.write w s)
+      (.flush w)))
 
   clojure.lang.ISeq
-  (write-body! [body ^HttpServletResponse response]
-    (with-open [writer (.getWriter response)]
-      (doseq [chunk body]
-        (.print writer (str chunk))
-        (.flush writer))))
+  (write-body! [coll ^HttpServletResponse response]
+    (let [w (response->output-stream-writer response)]
+      (doseq [chunk coll]
+        (.write w (str chunk))
+        (.flush w))))
+
+  clojure.lang.Fn
+  (write-body! [f ^HttpServletResponse response]
+    (f response))
 
   InputStream
-  (write-body! [body ^HttpServletResponse response]
-    (with-open [^InputStream b body]
+  (write-body! [stream ^HttpServletResponse response]
+    (with-open [^InputStream b stream]
       (io/copy b (.getOutputStream response))))
 
   File
-  (write-body! [body ^HttpServletResponse response]
-      (let [^File f body]
-        (with-open [stream (FileInputStream. f)]
-          (write-body! stream response))))
+  (write-body! [file ^HttpServletResponse response]
+    (with-open [stream (FileInputStream. file)]
+      (write-body! stream response)))
 
   clojure.core.async.impl.channels.ManyToManyChannel
   (write-body! [ch ^HttpServletResponse response]
-    (let [^OutputStreamWriter w (-> response
-                                    .getOutputStream
-                                    OutputStreamWriter.)]
+    (let [w (response->output-stream-writer response)]
       (async/go
         (loop []
           (if-let [x (async/<! ch)]
-            (do
-              (.write ^OutputStreamWriter w ^String x)
-              (.flush ^OutputStreamWriter w)
-              (.flushBuffer ^HttpServletResponse response)
-              (recur)))))))
+            (do (write-body! x response)
+                (recur))
+            (.flushBuffer ^HttpServletResponse response))))))
 
   nil
   (write-body! [body response]
@@ -172,7 +176,9 @@
       (async/take! (set-response-body! response body)
                    (fn [_] (.complete ctx)))
       (.addListener ctx (async-listener body)))
-    (set-response-body! response body)))
+    (do
+      (set-response-body! response body)
+      (.flushBuffer response))))
 
 (defn make-service-method
   "Turns a handler into a function that takes the same arguments and has the
