@@ -115,8 +115,8 @@ client disconnects the channel closes as well.
        (async/>! ch (str i "\n")))
      (async/close! ch))
     {:body ch
-    :headers {"Content-Type" "prout"}
-    :status 201}))
+     :headers {"Content-Type" "prout"}
+     :status 201}))
 
 (qbits.jet.server/run-jetty handler {:port ...})
 ```
