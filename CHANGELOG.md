@@ -2,11 +2,29 @@
 
 ## 0.3.0-beta5
 
-* add chunked response via servlet 3.1 async + core async When you
-return a core.async/chan as body the response will be chunked and
-stream to the client. Calling clojure.core.async/close! on the channel
-will complete the connection. In case of error/timeouts disconnects
-the channel will close.
+* add chunked response via servlet 3.1 async + core async over regular ring handlers.
+When you return a core.async/chan as body the response will be chunked
+and stream to the client. Calling clojure.core.async/close! on the
+channel will complete the connection. In case of error/timeouts
+disconnects the channel will close.
+
+```clojure
+(require '[clojure.core.async :as async])
+
+(defn handler
+  [request]
+  (let [ch (async/chan 1)]
+    (async/go
+     (dotimes [i 5]
+       (async/<! (async/timeout 300))
+       (async/>! ch (str i "\n")))
+     (async/close! ch))
+    {:body ch
+    :headers {"Content-Type" "prout"}
+    :status 400}))
+
+(qbits.jet.server/run-jetty handler {:port ...})
+```
 
 ## 0.3.0-beta4
 
