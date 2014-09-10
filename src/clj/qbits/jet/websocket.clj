@@ -1,5 +1,5 @@
 (ns qbits.jet.websocket
-  "This listener could be shared by the server or/and the client impl"
+  "Shared by the server and the client impl"
   (:require
    [clojure.core.async :as async])
   (:import
