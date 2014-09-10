@@ -10,6 +10,8 @@ It's a drop in adapter replacement for ring apps.
 
 * **ring adapter** running on jetty9
 
+* Ring extension where core.async channel as response toggle **Jetty9 Async**
+
 * Ring extension where core.async channel as :body in response does
   **Chunked Transfers**
 
@@ -95,6 +97,27 @@ The websocket client is used the same way
 If you close the :out channel, the socket will be closed, this is true
 for both client/server modes.
 
+### Ring Async
+
+You can have fine control over Jetty9 Async mode using a core.async
+channel as response:
+
+```clojure
+(require '[clojure.core.async :as async])
+
+(defn async-handler [request]
+  (let [ch (async/chan)]
+    (async/go
+      (async/<! (async/timeout 1000))
+      (async/>! ch
+                {:body "foo"
+                 :headers {"Content-Type" "foo"}
+                 :status 202}))
+    ch))
+
+(qbits.jet.server/run-jetty async-handler)
+
+```
 
 ### Server Chunked Responses
 

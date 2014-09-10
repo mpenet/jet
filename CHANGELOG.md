@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+* Jetty9 will go in async mode when the response is a core.async
+  channel. When the response map is fed to the channel the asyn
+  context closes and the response is completed. This is compatible
+  with chunked body, meaning you can have an async response (a
+  channel), that could include a chunked body (:body is a channel as
+  well in this case, and the async context is shared, and closed when
+  the body streaming ends).
+
 ## 0.3.0-beta5
 
 * add chunked response via servlet 3.1 async + core async over regular ring handlers.
