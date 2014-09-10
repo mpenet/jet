@@ -42,6 +42,63 @@ Add this to your dependencies:
 ```
 ## Examples
 
+### Vanilla Ring handler
+
+Same as any ring compliant adapter
+
+```clojure
+(use 'qbits.jet.server)
+
+(run-jetty handler {:port ...})
+```
+
+### Ring Async
+
+You can have fine control over Jetty9 Async mode using a core.async
+channel as response:
+
+```clojure
+(require '[clojure.core.async :as async])
+
+(defn async-handler [request]
+  (let [ch (async/chan)]
+    (async/go
+      (async/<! (async/timeout 1000))
+      (async/>! ch
+                {:body "foo"
+                 :headers {"Content-Type" "foo"}
+                 :status 202}))
+    ch))
+
+(qbits.jet.server/run-jetty async-handler)
+
+```
+
+### Server Chunked Responses
+
+If you return a core.async channel in a ring body jetty will go into
+async mode and the channel values will be streamed as chunks. If the
+channel is closed the connection ends. If an error occurs or the
+client disconnects the channel closes as well.
+
+```clojure
+(require '[clojure.core.async :as async])
+
+(defn handler
+  [request]
+  (let [ch (async/chan 1)]
+    (async/go
+     (dotimes [i 5]
+       (async/<! (async/timeout 300))
+       (async/>! ch (str i "\n")))
+     (async/close! ch))
+    {:body ch
+     :headers {"Content-Type" "prout"}
+     :status 201}))
+
+(qbits.jet.server/run-jetty handler {:port ...})
+```
+
 ### WebSocket
 
 Here we have the equivalent of a call to run-jetty, with the first
@@ -97,52 +154,6 @@ The websocket client is used the same way
 If you close the :out channel, the socket will be closed, this is true
 for both client/server modes.
 
-### Ring Async
-
-You can have fine control over Jetty9 Async mode using a core.async
-channel as response:
-
-```clojure
-(require '[clojure.core.async :as async])
-
-(defn async-handler [request]
-  (let [ch (async/chan)]
-    (async/go
-      (async/<! (async/timeout 1000))
-      (async/>! ch
-                {:body "foo"
-                 :headers {"Content-Type" "foo"}
-                 :status 202}))
-    ch))
-
-(qbits.jet.server/run-jetty async-handler)
-
-```
-
-### Server Chunked Responses
-
-If you return a core.async channel in a ring body jetty will go into
-async mode and the channel values will be streamed as chunks. If the
-channel is closed the connection ends. If an error occurs or the
-client disconnects the channel closes as well.
-
-```clojure
-(require '[clojure.core.async :as async])
-
-(defn handler
-  [request]
-  (let [ch (async/chan 1)]
-    (async/go
-     (dotimes [i 5]
-       (async/<! (async/timeout 300))
-       (async/>! ch (str i "\n")))
-     (async/close! ch))
-    {:body ch
-     :headers {"Content-Type" "prout"}
-     :status 201}))
-
-(qbits.jet.server/run-jetty handler {:port ...})
-```
 
 ### HTTP Client
 
