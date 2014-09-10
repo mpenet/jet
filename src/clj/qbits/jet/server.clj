@@ -89,9 +89,9 @@ Derived from ring.adapter.jetty"
   (proxy [AbstractHandler] []
     (handle [_ ^Request base-request request response]
       (let [request-map (build-request-map request)
-            response-map (handler request-map)]
-        (when response-map
-          (servlet/update-servlet-response response response-map request)
+            response' (handler request-map)]
+        (when response'
+          (servlet/update-response response' request response)
           (.setHandled base-request true))))))
 
 (defn- http-config

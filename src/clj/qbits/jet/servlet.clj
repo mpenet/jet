@@ -18,18 +18,22 @@
     HttpServletRequest
     HttpServletResponse)))
 
+(defn chan?
+  [x]
+  (instance? clojure.core.async.impl.channels.ManyToManyChannel x))
+
 (defn- get-headers
   "Creates a name/value map of all the request headers."
   [^HttpServletRequest request]
   (reduce
-    (fn [headers ^String name]
-      (assoc headers
-        (.toLowerCase name)
-        (->> (.getHeaders request name)
-             (enumeration-seq)
-             (string/join ","))))
-    {}
-    (enumeration-seq (.getHeaderNames request))))
+   (fn [headers ^String name]
+     (assoc headers
+       (.toLowerCase name)
+       (->> (.getHeaders request name)
+            (enumeration-seq)
+            (string/join ","))))
+   {}
+   (enumeration-seq (.getHeaderNames request))))
 
 (defn- get-content-length
   "Returns the content length, or nil if there is no content."
@@ -86,7 +90,7 @@
       (.setHeader response key val-or-vals)
       (doseq [val val-or-vals]
         (.addHeader response key val))))
-  ; Some headers must be set through specific methods
+                                        ; Some headers must be set through specific methods
   (when-let [content-type (get headers "Content-Type")]
     (.setContentType response content-type)))
 
@@ -158,20 +162,18 @@
     (onComplete [this e]
       (async/close! ch))))
 
-(defn update-servlet-response
-  "Update the HttpServletResponse using a response map."
+(defn async-context
+  [^HttpServletRequest request]
+  (when-not (.isAsyncStarted request)
+    (.startAsync request))
+  (.getAsyncContext request))
+
+(defn set-body!
   [^HttpServletResponse response
-   {:keys [status headers body] :as response-map}
-   ^HttpServletRequest request]
-  (when-not response
-    (throw (Exception. "Null response given.")))
-  (when status
-    (set-status! response status))
-
-  (set-headers! response headers)
-
-  (if (instance? clojure.core.async.impl.protocols.Channel body)
-    (let [ctx (doto (.startAsync request)
+   ^HttpServletRequest request
+   body]
+  (if (chan? body)
+    (let [ctx (doto (async-context request)
                 (.setTimeout 0))]
       (async/take! (set-response-body! response body)
                    (fn [_] (.complete ctx)))
@@ -179,6 +181,46 @@
     (do
       (set-response-body! response body)
       (.flushBuffer response))))
+
+(defn set-headers+status!
+  [^HttpServletResponse response headers status]
+  (when status
+    (set-status! response status))
+  (set-headers! response headers))
+
+(defn throw-invalid-response!
+  [x]
+  (throw (ex-info "Invalid response given." {:response x})))
+
+(defprotocol PResponse
+  (update-response [x request response]))
+
+(extend-protocol PResponse
+  clojure.core.async.impl.channels.ManyToManyChannel
+  (update-response [response-ch
+                    ^HttpServletRequest request
+                    ^HttpServletResponse response]
+    (let [ctx (async-context request)]
+      (async/take! response-ch
+                   #(do
+                      (update-response % request response)
+                      (when-not (chan? (:body %))
+                        (.complete ctx))))))
+
+  clojure.lang.IPersistentMap
+  (update-response [{:keys [status headers body]}
+                    ^HttpServletRequest request
+                    ^HttpServletResponse response]
+    (set-headers+status! response headers status)
+    (set-body! response request body))
+
+  Object
+  (update-response [x _ _]
+    (throw-invalid-response! x))
+
+  nil
+  (update-response [x _ _]
+    (throw-invalid-response! x)))
 
 (defn make-service-method
   "Turns a handler into a function that takes the same arguments and has the
@@ -189,10 +231,9 @@
        ^HttpServletResponse response]
     (let [request-map (-> request
                           (build-request-map)
-                          (merge-servlet-keys servlet request response))]
-      (if-let [response-map (handler request-map)]
-        (update-servlet-response response response-map request)
-        (throw (NullPointerException. "Handler returned nil"))))))
+                          (merge-servlet-keys servlet request response))
+          response' (handler request-map)]
+      (update-response response' request response))))
 
 (defn servlet
   "Create a servlet from a Ring handler."
@@ -200,7 +241,7 @@
   (proxy [HttpServlet] []
     (service [request response]
       ((make-service-method handler)
-         this request response))))
+       this request response))))
 
 (defmacro defservice
   "Defines a service method with an optional prefix suitable for being used by
@@ -208,12 +249,12 @@
 
   For example:
 
-    (defservice my-handler)
+  (defservice my-handler)
     (defservice \"my-prefix-\" my-handler)"
   ([handler]
-   `(defservice "-" ~handler))
+     `(defservice "-" ~handler))
   ([prefix handler]
-   `(defn ~(symbol (str prefix "service"))
-      [servlet# request# response#]
-      ((make-service-method ~handler)
+     `(defn ~(symbol (str prefix "service"))
+        [servlet# request# response#]
+        ((make-service-method ~handler)
          servlet# request# response#))))

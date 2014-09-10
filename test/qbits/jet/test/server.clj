@@ -29,6 +29,32 @@
    :headers {"request-map" (str (dissoc request :body))}
    :body (:body request)})
 
+(defn async-handler [request]
+  (let [ch (async/chan)]
+    (async/go
+      (async/<! (async/timeout 1000))
+      (async/>! ch
+                {:body "foo"
+                 :headers {"Content-Type" "foo"}
+                 :status 202}))
+    ch))
+
+(defn async-handler+chunked-body [request]
+  (let [ch (async/chan)]
+    (async/go
+      (async/<! (async/timeout 1000))
+      (async/>! ch
+                {:body (let [ch (async/chan)]
+                         (async/go (async/>! ch "foo")
+                                   (async/>! ch "bar")
+                                   (async/close! ch))
+                         ch)
+
+
+                 :headers {"Content-Type" "foo"}
+                 :status 202}))
+    ch))
+
 (defn chunked-handler [request]
   (let [ch (async/chan 1)]
     (async/go
@@ -142,8 +168,20 @@
         (is (= (-> response :body async/<!!) "2"))
         (is (= (-> response :body async/<!!) "3"))
         (is (= (-> response :body async/<!!) "4"))
-        (is (= (-> response :body async/<!!) nil))
-        )))
+        (is (= (-> response :body async/<!!) nil)))))
+
+  (testing "async response"
+    (with-server async-handler {:port 4347}
+      (let [response (async/<!! (http/get "http://localhost:4347/"))]
+        (is (= (:status response) 202)))))
+
+  (testing "async+chunked-body"
+    (with-server async-handler+chunked-body {:port 4347}
+      (let [response (async/<!! (http/get "http://localhost:4347/"))
+            body (:body response)]
+        (is (= (:status response) 202))
+        (is (= "foo" (async/<!! body)))
+        (is (= "bar" (async/<!! body))))))
 
  (testing "POST+PUT requests"
     (with-server echo-handler
