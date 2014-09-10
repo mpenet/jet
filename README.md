@@ -71,7 +71,6 @@ channel as response:
     ch))
 
 (qbits.jet.server/run-jetty async-handler)
-
 ```
 
 ### Server Chunked Responses
