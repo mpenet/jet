@@ -162,7 +162,7 @@
     (onComplete [this e]
       (async/close! ch))))
 
-(defn async-context
+(defn ^AsyncContext async-context
   [^HttpServletRequest request]
   (when-not (.isAsyncStarted request)
     (.startAsync request))
