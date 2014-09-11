@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+* Use jetty-* 9.2.3.v20140905 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.3.0
 
 * Jetty9 will go in async mode when the response is a core.async
