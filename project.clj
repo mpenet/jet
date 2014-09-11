@@ -1,4 +1,4 @@
-(defproject cc.qbits/jet "0.3.0"
+(defproject cc.qbits/jet "0.3.1"
   :description ""
   :url "https://github.com/mpenet/jet"
   :license {:name "Eclipse Public License"
@@ -6,10 +6,10 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.338.0-5c5012-alpha"]
                  [org.eclipse.jetty/jetty-server "9.2.2.v20140723"]
-                 [org.eclipse.jetty.websocket/websocket-server "9.2.2.v20140723"]
-                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.2.v20140723"]
-                 [org.eclipse.jetty.websocket/websocket-client "9.2.2.v20140723"]
-                 [org.eclipse.jetty/jetty-client "9.2.2.v20140723"]
+                 [org.eclipse.jetty.websocket/websocket-server "9.2.3.v20140905"]
+                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.3.v20140905"]
+                 [org.eclipse.jetty.websocket/websocket-client "9.2.3.v20140905"]
+                 [org.eclipse.jetty/jetty-client "9.2.3.v20140905"]
                  [cheshire "5.3.1"]]
   :profiles {:1.4  {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5  {:dependencies [[org.clojure/clojure "1.5.0"]]}
