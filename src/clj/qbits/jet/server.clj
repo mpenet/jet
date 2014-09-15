@@ -47,8 +47,8 @@ Derived from ring.adapter.jetty"
                  ctrl async/chan}
             :as options}]
   (reify WebSocketCreator
-    (createWebSocket [this sureq suresp]
-      (make-websocket in out ctrl handler))))
+    (createWebSocket [this _ _]
+      (make-websocket (in) (out) (ctrl) handler))))
 
 (defn- make-ws-handler
   "Returns a Jetty websocket handler"
