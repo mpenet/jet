@@ -104,10 +104,9 @@ Here we have the equivalent of a call to run-jetty, with the first
 param as your main app ring handler (coming from whatever routing lib
 you might use).
 
-In the options the `:websockets` value takes a map of path to
-handlers.
+In the options the `:websocket-handler` value takes a normal ring handler
 
-The websocket handlers receive a map that hold 3 core.async channels
+The websocket handlers receive a ring request map + 3 core.async channels
 and the underlying WebSocketAdapter instance for potential advanced uses.
 
 * `ctrl` will receive status messages such as `[::error e]` `[::close reason]`
@@ -126,13 +125,13 @@ An example with a little PING/PONG between client and server:
 ;; Simple ping/pong server, will wait for PING, reply PONG and close connection
 (run-jetty some-ring-handler
   {:port 8013
-   :websockets {"/"
-                (fn [{:keys [in out ctrl ws]
-                      :as opts}]
-                    (async/go
-                      (when (= "PING" (async/<! in))
-                        (async/>! out "PONG")
-                        (async/close! out))))}})
+   :websocket-handler
+    (fn [{:keys [in out ctrl ws]
+          :as opts}]
+        (async/go
+          (when (= "PING" (async/<! in))
+            (async/>! out "PONG")
+            (async/close! out))))}})
 ```
 
 The websocket client is used the same way
