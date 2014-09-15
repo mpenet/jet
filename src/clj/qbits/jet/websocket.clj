@@ -1,7 +1,8 @@
 (ns qbits.jet.websocket
   "Shared by the server and the client impl"
   (:require
-   [clojure.core.async :as async])
+   [clojure.core.async :as async]
+   [clojure.string :as string])
   (:import
    (org.eclipse.jetty.websocket.api
     WebSocketListener
@@ -78,7 +79,27 @@
             (send! this x)
             (recur))
           (close! this))))
-    (handler {:in in :out out :ctrl ctrl :ws this}))
+    (let [request (.getUpgradeRequest s)
+          uri (.getRequestURI request)
+          port (.getPort uri)]
+      (handler
+       {:in in
+        :out out
+        :ctrl ctrl
+        :ws this
+        :server-name (.getHost uri)
+        :server-port port
+        :remote-addr (-> session .getRemoteAddress .getAddress .getHostAddress)
+        :uri (.getPath uri)
+        :scheme (if (= 443 port) "wss" "ws")
+        :query-string (.getQueryString request)
+        ;; jetty returns GET??
+        :request-method (some-> request .getMethod string/lower-case keyword)
+        :headers (reduce(fn [m [k v]]
+                          (assoc m (string/lower-case k) (string/join "," v)))
+                        {}
+                        (.getHeaders request))})))
+
   (onWebSocketError [this e]
     (async/put! ctrl [::error e])
     (close-chans! in out ctrl))

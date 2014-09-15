@@ -72,7 +72,7 @@
 
 
 (defmacro with-server [app options & body]
-  `(let [server# (run-jetty (-> ~app
+  `(let [server# (run-jetty (-> ~(or app (fn [_]))
                                 ring-kw-params/wrap-keyword-params
                                 ring-params/wrap-params)
                             ~(assoc options :join? false))]
@@ -262,11 +262,13 @@
     (let [p (promise)]
       (with-server nil
         {:port 4347
-         :websockets {"/" (fn [{:keys [in out ctrl]}]
-                            (async/go
-                              (when (= "PING" (async/<! in))
-                                (async/>! out "PONG"))))}}
-        (ws/connect! "ws://localhost:4347/"
+         :websocket-handler
+         (fn [{:keys [in out ctrl] :as request}]
+           (clojure.pprint/pprint request)
+           (async/go
+             (when (= "PING" (async/<! in))
+               (async/>! out "PONG"))))}
+        (ws/connect! "ws://0.0.0.0:4347/app?foo=bar"
                      (fn [{:keys [in out ctrl]}]
                        (async/go
                          (async/>! out "PING")

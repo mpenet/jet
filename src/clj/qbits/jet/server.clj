@@ -3,7 +3,6 @@
 Derived from ring.adapter.jetty"
   (:require
    [qbits.jet.servlet :as servlet]
-   [clojure.string :as string]
    [clojure.core.async :as async]
    [qbits.jet.websocket :refer :all])
   (:import
@@ -48,29 +47,8 @@ Derived from ring.adapter.jetty"
                  ctrl async/chan}
             :as options}]
   (reify WebSocketCreator
-    (createWebSocket [this _ _]
-      (make-websocket (in) (out) (ctrl) handler))))
-
-(defprotocol RequestMapDecoder
-  (build-request-map [r] "Decodes request params into clojure/ring map"))
-
-(extend-protocol RequestMapDecoder
-  HttpServletRequest
-  (build-request-map [request]
-    (servlet/build-request-map request))
-
-  WebSocket
-  (build-request-map [^WebSocket ws]
-    (let [request (-> ws session .getUpgradeRequest)]
-      {:uri (.getRequestURI request)
-       :query-string (.getQueryString request)
-       :origin (.getOrigin request)
-       :host (.getHost request)
-       :request-method (-> request .getMethod string/lower-case keyword)
-       :headers (reduce(fn [m [k v]]
-                         (assoc m (string/lower-case k) (string/join "," v)))
-                       {}
-                       (.getHeaders request))})))
+    (createWebSocket [this sureq suresp]
+      (make-websocket in out ctrl handler))))
 
 (defn- make-ws-handler
   "Returns a Jetty websocket handler"
@@ -85,10 +63,10 @@ Derived from ring.adapter.jetty"
 
 (defn- make-handler
   "Returns an Jetty Handler implementation for the given Ring handler."
-  [handler]
+  [handler options]
   (proxy [AbstractHandler] []
     (handle [_ ^Request base-request request response]
-      (let [request-map (build-request-map request)
+      (let [request-map (servlet/build-request-map request)
             response' (handler request-map)]
         (when response'
           (servlet/update-response response' request response)
@@ -215,23 +193,22 @@ supplied options:
     * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`
 "
   [ring-handler {:as options
-                 :keys [max-threads min-threads websockets configurator join?]
+                 :keys [max-threads min-threads websocket-handler configurator join?]
                  :or {max-threads 50
                       min-threads 8
                       join? true}}]
   (let [^Server s (create-server options)
         ^QueuedThreadPool p (QueuedThreadPool. (int max-threads)
                                                (int min-threads))
-        ring-app-handler (make-handler ring-handler)
-        ws-handlers (map (fn [[context-path handler]]
-                           (doto (ContextHandler.)
-                             (.setContextPath context-path)
-                             (.setHandler (make-ws-handler handler options))))
-                         websockets)
-        contexts (doto (HandlerList.)
-                   (.setHandlers
-                    (into-array Handler (reverse (conj ws-handlers ring-app-handler)))))]
-    (.setHandler s contexts)
+        hs (HandlerList.)]
+    (when ring-handler
+      (.addHandler hs (make-handler ring-handler options)))
+
+    (when websocket-handler
+      (.addHandler hs (make-ws-handler websocket-handler options)))
+
+    (.setHandler s hs)
+
     (when-let [c configurator]
       (c s))
     (.start s)
