@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 ** Breaking change **
+
+* websocket is now managed via a single handler, like a normal
+  ring-handler. It now receives a RING compliant request map in
+  addition of the 3 channels and the ws instance. That should make it
+  compatible with RING compatible routing libraries and a large number
+  of middlewares.
+  Before we passed a `:websocket` map to the options of run-jetty with a
+  mapping of routes -> handlers, that key disapeared and now we have
+  `:websocket-handler` that take the "root" handler as described.
+
 ## 0.3.1
 
 * Use jetty-* 9.2.3.v20140905 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
