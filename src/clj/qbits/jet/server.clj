@@ -184,9 +184,7 @@ supplied options:
 * `:send-server-version?` - (default true)
 * `:send-date-header?` - (default false)
 * `:header-cache-size` - (default 512)
-* `:websockets` - a map from context path to a map of handler fns:
-
-     `{\"/context\" {\"foo\" (fn [{:keys [in out ctrl ws]}) ...)}}`
+* `:websocket-handler` - a handler function that will receive a RING request map with the following keys added:
 
     * `:in`: core.async chan that receives data sent by the client
     * `:out`: core async chan you can use to send data to client
