@@ -91,7 +91,7 @@
         :server-port port
         :remote-addr (-> session .getRemoteAddress .getAddress .getHostAddress)
         :uri (.getPath uri)
-        :scheme (if (= 443 port) "wss" "ws")
+        :scheme (if (= 443 port) :wss :ws)
         :query-string (.getQueryString request)
         :request-method :get ;; (some-> request .getMethod string/lower-case keyword)
         :headers (reduce(fn [m [k v]]
