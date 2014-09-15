@@ -93,8 +93,7 @@
         :uri (.getPath uri)
         :scheme (if (= 443 port) "wss" "ws")
         :query-string (.getQueryString request)
-        ;; jetty returns GET??
-        :request-method (some-> request .getMethod string/lower-case keyword)
+        :request-method :get ;; (some-> request .getMethod string/lower-case keyword)
         :headers (reduce(fn [m [k v]]
                           (assoc m (string/lower-case k) (string/join "," v)))
                         {}
