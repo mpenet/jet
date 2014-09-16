@@ -44,12 +44,12 @@ Add this to your dependencies:
 
 ### Vanilla Ring handler
 
-Same as any ring compliant adapter
+Nearly the same as any ring compliant adapter
 
 ```clojure
 (use 'qbits.jet.server)
 
-(run-jetty handler {:port ...})
+(run-jetty {:ring-handler handler :port ...})
 ```
 
 ### Ring Async
@@ -70,7 +70,7 @@ channel as response:
                  :status 202}))
     ch))
 
-(qbits.jet.server/run-jetty async-handler)
+(qbits.jet.server/run-jetty {:ring-handler async-handler})
 ```
 
 ### Server Chunked Responses
@@ -95,16 +95,14 @@ client disconnects the channel closes as well.
      :headers {"Content-Type" "prout"}
      :status 201}))
 
-(qbits.jet.server/run-jetty handler {:port ...})
+(qbits.jet.server/run-jetty {:ring-handler handler :port ...})
 ```
 
 ### WebSocket
 
-Here we have the equivalent of a call to run-jetty, with the first
-param as your main app ring handler (coming from whatever routing lib
-you might use).
 
-In the options the `:websocket-handler` value takes a normal ring handler
+In the options the `:websocket-handler` is the root handler for all
+websocket connections.
 
 The websocket handlers receive a ring request map + 3 core.async channels
 and the underlying WebSocketAdapter instance for potential advanced uses.
@@ -123,7 +121,7 @@ An example with a little PING/PONG between client and server:
 (use 'qbits.jet.server)
 
 ;; Simple ping/pong server, will wait for PING, reply PONG and close connection
-(run-jetty some-ring-handler
+(run-jetty
   {:port 8013
    :websocket-handler
     (fn [{:keys [in out ctrl ws]

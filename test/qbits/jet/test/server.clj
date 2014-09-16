@@ -13,6 +13,10 @@
    (org.eclipse.jetty.server Server Request)
    (org.eclipse.jetty.server.handler AbstractHandler)))
 
+(def port 4347)
+(def base-url (str "http://localhost:" port))
+
+
 (defn hello-world [request]
   {:status  200
    :headers {"Content-Type" "text/plain"}
@@ -49,8 +53,6 @@
                                    (async/>! ch "bar")
                                    (async/close! ch))
                          ch)
-
-
                  :headers {"Content-Type" "foo"}
                  :status 202}))
     ch))
@@ -71,78 +73,92 @@
   (-> response (get-in [:headers "request-map"]) read-string))
 
 
-(defmacro with-server [app options & body]
-  `(let [server# (run-jetty (-> ~(or app (fn [_]))
-                                ring-kw-params/wrap-keyword-params
-                                ring-params/wrap-params)
-                            ~(assoc options :join? false))]
+(defmacro with-server [options & body]
+  `(let [server# (run-jetty (-> (assoc ~options :join? false)
+                                (assoc :ring-handler
+                                  (some-> (get ~options :ring-handler)
+                                          ring-kw-params/wrap-keyword-params
+                                          ring-params/wrap-params))))]
      (try
        ~@body
        (finally (.stop server#)))))
 
 (deftest test-run-jetty
   (testing "HTTP server"
-    (with-server hello-world {:port 4347}
-      (let [response (async/<!! (http/get "http://localhost:4347"))]
+    (with-server {:port port :ring-handler hello-world}
+      (let [response (async/<!! (http/get base-url))]
         (is (= (:status response) 200))
         (is (.startsWith (get-in response [:headers "content-type"])
                          "text/plain"))
         (is (= (async/<!! (:body response)) "Hello World")))))
 
   (testing "HTTPS server"
-    (with-server hello-world {:port 4347
-                              :ssl-port 4348
-                              :keystore "test/keystore.jks"
-                              :key-password "password"}
+    (with-server {:ring-handler hello-world
+                  :port port
+                  :ssl-port 4348
+                  :keystore "test/keystore.jks"
+                  :key-password "password"}
       (let [response (async/<!! (http/get "https://localhost:4348" {:insecure? true}))]
         (is (= (:status response) 200))
         (is (= (-> response :body async/<!!) "Hello World")))))
 
   (testing "setting daemon threads"
     (testing "default (daemon off)"
-      (let [server (run-jetty hello-world {:port 4347 :join? false})]
+      (let [server (run-jetty {:port port
+                               :ring-handler hello-world
+                               :join? false})]
         (is (not (.. server getThreadPool isDaemon)))
         (.stop server)))
     (testing "daemon on"
-      (let [server (run-jetty hello-world {:port 4347 :join? false :daemon? true})]
+      (let [server (run-jetty {:ring-handler hello-world
+                               :port port
+                               :join? false
+                               :daemon? true})]
         (is (.. server getThreadPool isDaemon))
         (.stop server)))
     (testing "daemon off"
-      (let [server (run-jetty hello-world {:port 4347 :join? false :daemon? false})]
+      (let [server (run-jetty {:ring-handler hello-world
+                               :port port
+                               :join? false
+                               :daemon? false})]
         (is (not (.. server getThreadPool isDaemon)))
         (.stop server))))
 
-   (testing "setting min-threads"
-    (let [server (run-jetty hello-world {:port 4347
-                                         :min-threads 3
-                                         :join? false})
+  (testing "setting min-threads"
+    (let [server (run-jetty {:ring-handler hello-world
+                             :port port
+                             :min-threads 3
+                             :join? false})
           thread-pool (. server getThreadPool)]
       (is (= 3 (. thread-pool getMinThreads)))
       (.stop server)))
 
   (testing "default min-threads"
-    (let [server (run-jetty hello-world {:port 4347
-                                         :join? false})
+    (let [server (run-jetty {:ring-handler hello-world
+                             :port port
+                             :join? false})
           thread-pool (. server getThreadPool)]
       (is (= 8 (. thread-pool getMinThreads)))
       (.stop server)))
 
   (testing "default character encoding"
-    (with-server (content-type-handler "text/plain") {:port 4347}
-      (let [response (async/<!! (http/get "http://localhost:4347"))]
+    (with-server {:ring-handler (content-type-handler "text/plain") :port port}
+      (let [response (async/<!! (http/get base-url))]
         (is (.contains
              (get-in response [:headers "content-type"])
              "text/plain")))))
 
   (testing "custom content-type"
-    (with-server (content-type-handler "text/plain;charset=UTF-16;version=1") {:port 4347}
-      (let [response (async/<!! (http/get "http://localhost:4347"))]
+    (with-server {:ring-handler (content-type-handler "text/plain;charset=UTF-16;version=1")
+                  :port port}
+      (let [response (async/<!! (http/get base-url))]
         (is (= (get-in response [:headers "content-type"])
                "text/plain;charset=UTF-16;version=1")))))
 
   (testing "request translation"
-    (with-server echo-handler {:port 4347}
-      (let [response (async/<!! (http/post "http://localhost:4347/foo/bar/baz?surname=jones&age=123" {:body "hello"}))]
+    (with-server {:ring-handler echo-handler
+                  :port port}
+      (let [response (async/<!! (http/post (str base-url "/foo/bar/baz?surname=jones&age=123") {:body "hello"}))]
         (is (= (:status response) 200))
         (is (= (-> response :body async/<!!) "hello"))
         (let [request-map (request-map->edn response)]
@@ -155,13 +171,14 @@
           (is (= (:remote-addr request-map) "127.0.0.1"))
           (is (= (:scheme request-map) :http))
           (is (= (:server-name request-map) "localhost"))
-          (is (= (:server-port request-map) 4347))
+          (is (= (:server-port request-map) port))
           (is (= (:ssl-client-cert request-map) nil))))))
 
 
   (testing "chunked response"
-    (with-server chunked-handler {:port 4347}
-      (let [response (async/<!! (http/get "http://localhost:4347/"))]
+    (with-server {:ring-handler chunked-handler
+                  :port port}
+      (let [response (async/<!! (http/get base-url))]
         (is (= (:status response) 201))
         (is (= (-> response :body async/<!!) "0"))
         (is (= (-> response :body async/<!!) "1"))
@@ -171,104 +188,101 @@
         (is (= (-> response :body async/<!!) nil)))))
 
   (testing "async response"
-    (with-server async-handler {:port 4347}
-      (let [response (async/<!! (http/get "http://localhost:4347/"))]
+    (with-server {:ring-handler async-handler
+                  :port port}
+      (let [response (async/<!! (http/get base-url))]
         (is (= (:status response) 202)))))
 
   (testing "async+chunked-body"
-    (with-server async-handler+chunked-body {:port 4347}
-      (let [response (async/<!! (http/get "http://localhost:4347/"))
+    (with-server {:ring-handler async-handler+chunked-body
+                  :port port}
+      (let [response (async/<!! (http/get base-url))
             body (:body response)]
         (is (= (:status response) 202))
         (is (= "foo" (async/<!! body)))
         (is (= "bar" (async/<!! body))))))
 
- (testing "POST+PUT requests"
-    (with-server echo-handler
-      {:port 4347}
-      (let [response (async/<!! (http/post "http://localhost:4347"
+  (testing "POST+PUT requests"
+    (with-server {:ring-handler echo-handler :port port}
+      (let [response (async/<!! (http/post base-url
                                            {:form-params {:foo "bar"}}))
             request-map (request-map->edn response)]
         ;; TODO post files
         (is (= "bar" (get-in request-map [:form-params "foo"]))))
 
-      (let [response (async/<!! (http/put "http://localhost:4347"
+      (let [response (async/<!! (http/put base-url
                                           {:form-params {:foo "bar"}}))
             request-map (request-map->edn response)]
         (is (= "bar" (get-in request-map [:form-params "foo"]))))))
 
- (testing "HEAD+DELETE+TRACE requests"
-    (with-server echo-handler
-      {:port 4347}
-      (let [response (async/<!! (http/head "http://localhost:4347"))
+  (testing "HEAD+DELETE+TRACE requests"
+    (with-server {:port port :ring-handler echo-handler}
+      (let [response (async/<!! (http/head base-url))
             request-map (request-map->edn response)]
         (is (= :head (:request-method request-map))))
-      (let [response (async/<!! (http/delete "http://localhost:4347"))
+      (let [response (async/<!! (http/delete base-url))
             request-map (request-map->edn response)]
         (is (= :delete (:request-method request-map))))
-      (let [response (async/<!! (http/trace "http://localhost:4347"))
+      (let [response (async/<!! (http/trace base-url))
             request-map (request-map->edn response)]
         (is (= :trace (:request-method request-map))))))
 
 
- (testing "HTTP request :as"
-   (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json})
-                     async/<!! :body async/<!! :username)))
+  (testing "HTTP request :as"
+    (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json})
+                      async/<!! :body async/<!! :username)))
 
-   (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json-str})
-                     async/<!! :body async/<!! (get "username")))))
+    (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json-str})
+                      async/<!! :body async/<!! (get "username")))))
 
- (testing "cookies"
-   (with-server echo-handler
-     {:port 4347}
-     (is (= "foo=bar; something=else"
-            (get-in (-> (http/get "http://localhost:4347"
-                                  {:cookies [{:name "foo" :value "bar" :max-age 5}
-                                             {:name "something" :value "else" :max-age 5}]})
-                        async/<!!
-                        request-map->edn)
-                    [:headers "cookie"])))))
+  (testing "cookies"
+    (with-server {:ring-handler echo-handler :port port}
+      (is (= "foo=bar; something=else"
+             (get-in (-> (http/get base-url
+                                   {:cookies [{:name "foo" :value "bar" :max-age 5}
+                                              {:name "something" :value "else" :max-age 5}]})
+                         async/<!!
+                         request-map->edn)
+                     [:headers "cookie"])))))
 
- (testing "standalone client"
-   (with-server echo-handler
-     {:port 4347}
-     (let [c (http/client)]
-       (is (= 200 (:status (async/<!! (http/get c {:url "http://localhost:4347"}))))))))
+  (testing "standalone client"
+    (with-server {:ring-handler echo-handler :port port}
+      (let [c (http/client)]
+        (is (= 200 (:status (async/<!! (http/get c {:url base-url}))))))))
 
- (testing "Auth tests"
-   (let [u "test-user"
-         pwd "test-pwd"]
-     ;; (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
-     ;;                                  u pwd)
-     ;;                          {:auth {:type :digest :user u :password pwd :realm "me@kennethreitz.com"}})
-     ;;                async/<!! prn)
-     (is (= 200 (-> (http/get (format "http://httpbin.org/basic-auth/%s/%s"
-                                      u pwd)
-                              {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
-                    async/<!! :status)))
+  (testing "Auth tests"
+    (let [u "test-user"
+          pwd "test-pwd"]
+      ;; (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
+      ;;                                  u pwd)
+      ;;                          {:auth {:type :digest :user u :password pwd :realm "me@kennethreitz.com"}})
+      ;;                async/<!! prn)
+      (is (= 200 (-> (http/get (format "http://httpbin.org/basic-auth/%s/%s"
+                                       u pwd)
+                               {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
+                     async/<!! :status)))
 
-     (is (= 200 (-> (http/get (format "https://httpbin.org/basic-auth/%s/%s"
-                                      u pwd)
-                              {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
-                    async/<!! :status)))
+      (is (= 200 (-> (http/get (format "https://httpbin.org/basic-auth/%s/%s"
+                                       u pwd)
+                               {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
+                     async/<!! :status)))
 
-     ;; (is (= 200 (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
-     ;;                                  u pwd)
-     ;;                          {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
-     ;;                async/<!! :status)))
-     ))
+      ;; (is (= 200 (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
+      ;;                                  u pwd)
+      ;;                          {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
+      ;;                async/<!! :status)))
+      ))
 
   (testing "WebSocket ping-pong"
     (let [p (promise)]
-      (with-server nil
-        {:port 4347
-         :websocket-handler
-         (fn [{:keys [in out ctrl] :as request}]
-           (clojure.pprint/pprint request)
-           (async/go
-             (when (= "PING" (async/<! in))
-               (async/>! out "PONG"))))}
-        (ws/connect! "ws://0.0.0.0:4347/app?foo=bar"
+      (with-server {:port port
+                    :websocket-handler
+                    (fn [{:keys [in out ctrl] :as request}]
+                      (clojure.pprint/pprint request)
+                      (async/go
+                        (when (= "PING" (async/<! in))
+                          (async/>! out "PONG"))))}
+        (ws/connect! (str "ws://0.0.0.0:Q" port "/app?foo=bar")
                      (fn [{:keys [in out ctrl]}]
                        (async/go
                          (async/>! out "PING")

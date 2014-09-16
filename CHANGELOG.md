@@ -7,9 +7,16 @@
   addition of the 3 channels and the ws instance. That should make it
   compatible with RING compatible routing libraries and a large number
   of middlewares.
-  Before we passed a `:websocket` map to the options of run-jetty with a
-  mapping of routes -> handlers, that key disapeared and now we have
-  `:websocket-handler` that take the "root" handler as described.
+
+  This forced me to change run-jetty a bit to take a single map
+  argument that contains all the usuall options, but also
+  `:ring-handler` and `:websocket-handler`.
+
+```clojure
+(run-jetty {:ring-handler (fn [request] {:status 201 :body "foo"})
+            :wesocket-handler (fn [{:keys [in out ctrl params headers]}] ...)
+            :port 8080})
+```
 
 ## 0.3.1
 
