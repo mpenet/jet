@@ -253,36 +253,25 @@
   (testing "Auth tests"
     (let [u "test-user"
           pwd "test-pwd"]
-      ;; (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
-      ;;                                  u pwd)
-      ;;                          {:auth {:type :digest :user u :password pwd :realm "me@kennethreitz.com"}})
-      ;;                async/<!! prn)
+
       (is (= 200 (-> (http/get (format "http://httpbin.org/basic-auth/%s/%s"
                                        u pwd)
                                {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
                      async/<!! :status)))
-
       (is (= 200 (-> (http/get (format "https://httpbin.org/basic-auth/%s/%s"
                                        u pwd)
                                {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
-                     async/<!! :status)))
-
-      ;; (is (= 200 (-> (http/get (format "https://httpbin.org/digest-auth/auth/%s/%s"
-      ;;                                  u pwd)
-      ;;                          {:digest-auth {:user u :password pwd :realm "me@kennethreitz.com"}})
-      ;;                async/<!! :status)))
-      ))
+                     async/<!! :status)))))
 
   (testing "WebSocket ping-pong"
     (let [p (promise)]
       (with-server {:port port
                     :websocket-handler
                     (fn [{:keys [in out ctrl] :as request}]
-                      (clojure.pprint/pprint request)
                       (async/go
                         (when (= "PING" (async/<! in))
                           (async/>! out "PONG"))))}
-        (ws/connect! (str "ws://0.0.0.0:Q" port "/app?foo=bar")
+        (ws/connect! (str "ws://0.0.0.0:" port "/app?foo=bar")
                      (fn [{:keys [in out ctrl]}]
                        (async/go
                          (async/>! out "PING")
