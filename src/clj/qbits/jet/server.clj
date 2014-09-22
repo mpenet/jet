@@ -200,11 +200,12 @@ supplied options:
         ^QueuedThreadPool p (QueuedThreadPool. (int max-threads)
                                                (int min-threads))
         hs (HandlerList.)]
-    (when ring-handler
-      (.addHandler hs (make-handler ring-handler options)))
 
     (when websocket-handler
       (.addHandler hs (make-ws-handler websocket-handler options)))
+
+    (when ring-handler
+      (.addHandler hs (make-handler ring-handler options)))
 
     (.setHandler s hs)
 
