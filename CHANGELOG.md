@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+* ring handler comes last, makes 404/ANY handling easier
+
 ## 0.4.0 ** Breaking change **
 
 * websocket is now managed via a single handler, like a normal
