@@ -107,11 +107,8 @@
 
 (defn ^:no-doc add-cookies!
   [^HttpClient client url cookies]
-  (prn (.getCookieStore client))
   (cookies/add-cookies! (.getCookieStore client)
-                        url cookies)
-  ;; (.setCookieStore client cs)
-  )
+                        url cookies))
 
 (defn ^:no-doc add-auth!
   [^HttpClient client url {:keys [type user password realm]}]
@@ -136,7 +133,6 @@
             scheduler
             user-agent
             cookie-store
-            cookies
             remove-idle-destinations?
             dispatch-io?
             tcp-no-delay?
