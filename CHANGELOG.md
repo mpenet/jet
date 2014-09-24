@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2
+
+* HTTP client would leak jetty Clients after each requests.  Note:
+users who used a shared Client instance via request :client option
+must make sure then .stop it once the're done.
+
 ## 0.4.1
 
 * ring handler comes last, makes 404/ANY handling easier
