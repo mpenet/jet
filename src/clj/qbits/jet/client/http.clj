@@ -197,14 +197,15 @@
   (.stop cl))
 
 (defn request
-  [^HttpClient client {:keys [url method query-string form-params headers body
-                  content-type
-                  accept
-                  as
-                  timeout]
-           :or {method :get
-                as :string}
-           :as request-map}]
+  [^HttpClient client
+   {:keys [url method query-string form-params headers body
+           content-type
+           accept
+           as
+           timeout]
+    :or {method :get
+         as :string}
+    :as request-map}]
   (let [ch (async/chan)
         content-ch (async/chan)
         request ^Request (.newRequest client ^String url)]
