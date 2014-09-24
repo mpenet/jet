@@ -215,7 +215,8 @@
     :as request-map}]
   (let [ch (async/chan)
         content-ch (async/chan)
-        ^HttpClient cl (or (:client request-map) (client request-map))
+        opt-client (:client request-map)
+        ^HttpClient cl (or opt-client (client request-map))
         request ^Request (.newRequest cl ^String url)]
 
     (when timeout
@@ -270,7 +271,7 @@
                            (result->response result content-ch)
                            {:error result}))
              (async/close! ch)
-             (when-not (:client request-map)
+             (when-not opt-client
                (.stop cl))))))
     ch))
 
