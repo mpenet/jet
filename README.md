@@ -20,7 +20,7 @@ It's a drop in adapter replacement for ring apps.
 * **WebSocket Client** sharing the same principles/api than the WebSocket
   server handlers
 
-* **Asynchronous HTTP Client** with streaming support (clj-http ~compatible API)
+* **Asynchronous HTTP Client** with streaming support
 
 The server part started from the code of the various
 `ring-jetty9-adapters` out there.
@@ -160,77 +160,10 @@ asynchronously.  The response is then a fairly standard ring response
 map, except the body, which is also a core.async channel (support for
 chunked responses).
 
-See the docs for details,
-[HTTP client API docs](http://mpenet.github.io/jet/qbits.jet.client.http.html)
-[`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request) &
-[`qbits.jet.client.http/client`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-client) (the former builds on the later).
-
-
-
-```clojure
-(use 'qbits.jet.client.http)
-(use 'clojure.core.async)
-
-;; returns a chan
-(http/get "http://graph.facebook.com/zuck")
-user> #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@731db933>
-
-;; block for the response
-(<!! (http/get "http://graph.facebook.com/zuck"))
-
-user> {:status 200,
-       :headers
-       {"content-type" "text/javascript; charset=UTF-8",
-        "access-control-allow-origin" "*",
-        "content-length" "173",
-        "x-fb-debug"
-        "jkc4w5S1VN3bLddmGEU+r3F/5ANxPZXrcqq3bUXJ3n2bwZq7WB0xy+mB/CziD56wHWd2us//p2dTmRQSIiW+Yg==",
-        "facebook-api-version" "v1.0",
-        "connection" "keep-alive",
-        "pragma" "no-cache",
-        "expires" "Sat, 01 Jan 2000 00:00:00 GMT",
-        "x-fb-rev" "1358170",
-        "etag" "\"3becf5f2bb7ec39daa6bb65345d40b9f4b1db483\"",
-        "date" "Wed, 06 Aug 2014 15:51:02 GMT",
-        "cache-control" "private, no-cache, no-store, must-revalidate"},
-       :body
-       #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@7ca698b0>}
-
-
-;; get to the body
-(-> (http/get "http://graph.facebook.com/zuck")
-    <!!
-    :body
-    <!!)
-user> "{\"id\":\"4\",\"first_name\":\"Mark\",\"gender\":\"male\",\"last_name\":\"Zuckerberg\",\"link\":\"https:\\/\\/www.facebook.com\\/zuck\",\"locale\":\"en_US\",\"name\":\"Mark Zuckerberg\",\"username\":\"zuck\"}"
-
-;; autodecode the body
-(-> (get "http://graph.facebook.com/zuck" {:as :json})
-         async/<!!
-         :body
-         async/<!!)
-user> {:id "4",
-       :first_name "Mark",
-       :gender "male",
-       :last_name "Zuckerberg",
-       :link "https://www.facebook.com/zuck",
-       :locale "en_US",
-       :name "Mark Zuckerberg",
-       :username "zuck"}
-
-;; POST
-(post "http://foo.com" {:form-params {:foo "bar" :baz 1}})
-```
-
-And you can imagine (or read the api doc) how `post`, `put`, `delete`
-and other methods work. It's fairly standard. All the "method"
-functions are just api sugar around [`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request).
-
-This is the easy way of using the Http Client, you can also go further
-and take advantage of the fact that jetty9 HTTP client splits the client
-and request part of the process. You can create/setup a single client
-and re-use it for many requests.
-
+Another major difference is that Jetty enforces client reuse (browser
+model).  Calls to http client functions require a "client" argument,
+that can/would be shared by your app depending on context. This has a
+few advantages (shared cookie/auth conf, pooling etc).
 To quote the Jetty9 documentation:
 
 > HttpClient provides an efficient, asynchronous, non-blocking
@@ -253,14 +186,74 @@ To quote the Jetty9 documentation:
 > via getCookieStore().
 
 
-This is also accessible from clojure:
+See the docs for details,
+[HTTP client API docs](http://mpenet.github.io/jet/qbits.jet.client.http.html)
+[`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request) &
+[`qbits.jet.client.http/client`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-client) (the former builds on the later).
+
+
+
 ```clojure
-(def c (client {...}))
+(use 'qbits.jet.client.http)
+(use 'clojure.core.async)
 
-(get "http://foo.com" {:client c ...})
-(get "http://foo.com/bar" {:client c ...})
+(def cl (client))
 
+;; returns a chan
+(http/get cl "http://graph.facebook.com/zuck")
+user> #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@731db933>
+
+;; block for the response
+(<!! (http/get cl "http://graph.facebook.com/zuck"))
+
+user> {:status 200,
+       :headers
+       {"content-type" "text/javascript; charset=UTF-8",
+        "access-control-allow-origin" "*",
+        "content-length" "173",
+        "x-fb-debug"
+        "jkc4w5S1VN3bLddmGEU+r3F/5ANxPZXrcqq3bUXJ3n2bwZq7WB0xy+mB/CziD56wHWd2us//p2dTmRQSIiW+Yg==",
+        "facebook-api-version" "v1.0",
+        "connection" "keep-alive",
+        "pragma" "no-cache",
+        "expires" "Sat, 01 Jan 2000 00:00:00 GMT",
+        "x-fb-rev" "1358170",
+        "etag" "\"3becf5f2bb7ec39daa6bb65345d40b9f4b1db483\"",
+        "date" "Wed, 06 Aug 2014 15:51:02 GMT",
+        "cache-control" "private, no-cache, no-store, must-revalidate"},
+       :body
+       #<ManyToManyChannel clojure.core.async.impl.channels.ManyToManyChannel@7ca698b0>}
+
+
+;; get to the body
+(-> (http/get cl "http://graph.facebook.com/zuck")
+    <!!
+    :body
+    <!!)
+user> "{\"id\":\"4\",\"first_name\":\"Mark\",\"gender\":\"male\",\"last_name\":\"Zuckerberg\",\"link\":\"https:\\/\\/www.facebook.com\\/zuck\",\"locale\":\"en_US\",\"name\":\"Mark Zuckerberg\",\"username\":\"zuck\"}"
+
+;; autodecode the body
+(-> (get cl "http://graph.facebook.com/zuck" {:as :json})
+         async/<!!
+         :body
+         async/<!!)
+user> {:id "4",
+       :first_name "Mark",
+       :gender "male",
+       :last_name "Zuckerberg",
+       :link "https://www.facebook.com/zuck",
+       :locale "en_US",
+       :name "Mark Zuckerberg",
+       :username "zuck"}
+
+;; POST
+(post cl "http://foo.com" {:form-params {:foo "bar" :baz 1}})
 ```
+
+And you can imagine (or read the api doc) how `post`, `put`, `delete`
+and other methods work. It's fairly standard. All the "method"
+functions are just api sugar around [`qbits.jet.client.http/request`](http://mpenet.github.io/jet/qbits.jet.client.http.html#var-request).
+
 
 Please check the
 [Changelog](https://github.com/mpenet/jet/blob/master/CHANGELOG.md)

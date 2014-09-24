@@ -15,7 +15,7 @@
 
 (def port 4347)
 (def base-url (str "http://localhost:" port))
-
+(def client (http/client))
 
 (defn hello-world [request]
   {:status  200
@@ -86,7 +86,7 @@
 (deftest test-run-jetty
   (testing "HTTP server"
     (with-server {:port port :ring-handler hello-world}
-      (let [response (async/<!! (http/get base-url))]
+      (let [response (async/<!! (http/get client base-url))]
         (is (= (:status response) 200))
         (is (.startsWith (get-in response [:headers "content-type"])
                          "text/plain"))
@@ -98,7 +98,7 @@
                   :ssl-port 4348
                   :keystore "test/keystore.jks"
                   :key-password "password"}
-      (let [response (async/<!! (http/get "https://localhost:4348" {:insecure? true}))]
+      (let [response (async/<!! (http/get client "https://localhost:4348" {:insecure? true}))]
         (is (= (:status response) 200))
         (is (= (-> response :body async/<!!) "Hello World")))))
 
@@ -143,7 +143,7 @@
 
   (testing "default character encoding"
     (with-server {:ring-handler (content-type-handler "text/plain") :port port}
-      (let [response (async/<!! (http/get base-url))]
+      (let [response (async/<!! (http/get client base-url))]
         (is (.contains
              (get-in response [:headers "content-type"])
              "text/plain")))))
@@ -151,14 +151,14 @@
   (testing "custom content-type"
     (with-server {:ring-handler (content-type-handler "text/plain;charset=UTF-16;version=1")
                   :port port}
-      (let [response (async/<!! (http/get base-url))]
+      (let [response (async/<!! (http/get client base-url))]
         (is (= (get-in response [:headers "content-type"])
                "text/plain;charset=UTF-16;version=1")))))
 
   (testing "request translation"
     (with-server {:ring-handler echo-handler
                   :port port}
-      (let [response (async/<!! (http/post (str base-url "/foo/bar/baz?surname=jones&age=123") {:body "hello"}))]
+      (let [response (async/<!! (http/post client (str base-url "/foo/bar/baz?surname=jones&age=123") {:body "hello"}))]
         (is (= (:status response) 200))
         (is (= (-> response :body async/<!!) "hello"))
         (let [request-map (request-map->edn response)]
@@ -178,7 +178,7 @@
   (testing "chunked response"
     (with-server {:ring-handler chunked-handler
                   :port port}
-      (let [response (async/<!! (http/get base-url))]
+      (let [response (async/<!! (http/get client base-url))]
         (is (= (:status response) 201))
         (is (= (-> response :body async/<!!) "0"))
         (is (= (-> response :body async/<!!) "1"))
@@ -190,13 +190,13 @@
   (testing "async response"
     (with-server {:ring-handler async-handler
                   :port port}
-      (let [response (async/<!! (http/get base-url))]
+      (let [response (async/<!! (http/get client base-url))]
         (is (= (:status response) 202)))))
 
   (testing "async+chunked-body"
     (with-server {:ring-handler async-handler+chunked-body
                   :port port}
-      (let [response (async/<!! (http/get base-url))
+      (let [response (async/<!! (http/get client base-url))
             body (:body response)]
         (is (= (:status response) 202))
         (is (= "foo" (async/<!! body)))
@@ -204,63 +204,62 @@
 
   (testing "POST+PUT requests"
     (with-server {:ring-handler echo-handler :port port}
-      (let [response (async/<!! (http/post base-url
+      (let [response (async/<!! (http/post client
+                                           base-url
                                            {:form-params {:foo "bar"}}))
             request-map (request-map->edn response)]
         ;; TODO post files
         (is (= "bar" (get-in request-map [:form-params "foo"]))))
 
-      (let [response (async/<!! (http/put base-url
+      (let [response (async/<!! (http/put client base-url
                                           {:form-params {:foo "bar"}}))
             request-map (request-map->edn response)]
         (is (= "bar" (get-in request-map [:form-params "foo"]))))))
 
   (testing "HEAD+DELETE+TRACE requests"
     (with-server {:port port :ring-handler echo-handler}
-      (let [response (async/<!! (http/head base-url))
+      (let [response (async/<!! (http/head client base-url))
             request-map (request-map->edn response)]
         (is (= :head (:request-method request-map))))
-      (let [response (async/<!! (http/delete base-url))
+      (let [response (async/<!! (http/delete client base-url))
             request-map (request-map->edn response)]
         (is (= :delete (:request-method request-map))))
-      (let [response (async/<!! (http/trace base-url))
+      (let [response (async/<!! (http/trace client base-url))
             request-map (request-map->edn response)]
         (is (= :trace (:request-method request-map))))))
 
 
   (testing "HTTP request :as"
-    (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json})
+    (is (= "zuck" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json})
                       async/<!! :body async/<!! :username)))
 
-    (is (= "zuck" (-> (http/get "http://graph.facebook.com/zuck" {:as :json-str})
+    (is (= "zuck" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json-str})
                       async/<!! :body async/<!! (get "username")))))
 
   (testing "cookies"
     (with-server {:ring-handler echo-handler :port port}
+      (http/add-cookies! client base-url
+                         [{:name "foo" :value "bar" :max-age 5}
+                          {:name "something" :value "else" :max-age 5}])
       (is (= "foo=bar; something=else"
-             (get-in (-> (http/get base-url
-                                   {:cookies [{:name "foo" :value "bar" :max-age 5}
-                                              {:name "something" :value "else" :max-age 5}]})
+             (get-in (-> (http/get client base-url)
                          async/<!!
                          request-map->edn)
                      [:headers "cookie"])))))
 
-  (testing "standalone client"
-    (with-server {:ring-handler echo-handler :port port}
-      (let [c (http/client)]
-        (is (= 200 (:status (async/<!! (http/get c {:url base-url}))))))))
-
   (testing "Auth tests"
     (let [u "test-user"
-          pwd "test-pwd"]
+          pwd "test-pwd"
+          http-url (format "http://httpbin.org/basic-auth/%s/%s" u pwd)
+          https-url (format "https://httpbin.org/basic-auth/%s/%s" u pwd)]
+      (http/add-auth! client http-url
+                      {:type :basic :user u :password pwd :realm "Fake Realm"})
 
-      (is (= 200 (-> (http/get (format "http://httpbin.org/basic-auth/%s/%s"
-                                       u pwd)
-                               {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
+      (http/add-auth! client https-url
+                      {:type :basic :user u :password pwd :realm "Fake Realm"})
+      (is (= 200 (-> (http/get client http-url)
                      async/<!! :status)))
-      (is (= 200 (-> (http/get (format "https://httpbin.org/basic-auth/%s/%s"
-                                       u pwd)
-                               {:auth {:type :basic :user u :password pwd :realm "Fake Realm"}})
+      (is (= 200 (-> (http/get client https-url)
                      async/<!! :status)))))
 
   (testing "WebSocket ping-pong"

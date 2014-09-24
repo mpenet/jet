@@ -105,14 +105,15 @@
   (encode-content-type [content-type]
     (encode-content-type (subs (str content-type) 1))))
 
-(defn ^:no-doc set-cookies!
+(defn ^:no-doc add-cookies!
   [^HttpClient client url cookies]
-  (let [cs (cookies/add-cookies! (or (.getCookieStore client)
-                                     (cookies/cookie-store))
-                                 url cookies)]
-    (.setCookieStore client cs)))
+  (prn (.getCookieStore client))
+  (cookies/add-cookies! (.getCookieStore client)
+                        url cookies)
+  ;; (.setCookieStore client cs)
+  )
 
-(defn ^:no-doc set-auth!
+(defn ^:no-doc add-auth!
   [^HttpClient client url {:keys [type user password realm]}]
   (.addAuthentication
    (.getAuthenticationStore client)
@@ -136,7 +137,6 @@
             user-agent
             cookie-store
             cookies
-            auth
             remove-idle-destinations?
             dispatch-io?
             tcp-no-delay?
@@ -187,12 +187,6 @@
        (when cookie-store
          (.setCookieStore client cookie-store))
 
-       (when cookies
-         (set-cookies! client url cookies))
-
-       (when auth
-         (set-auth! client url auth))
-
        (.setRemoveIdleDestinations client remove-idle-destinations?)
        (.setDispatchIO client dispatch-io?)
        (.setFollowRedirects client follow-redirects?)
@@ -202,22 +196,22 @@
        client))
   ([] (client {})))
 
+(defn stop-client!
+  [^HttpClient cl]
+  (.stop cl))
+
 (defn request
-  [{:keys [url method query-string form-params headers body
-           content-type
-           accept
-           as
-           timeout
-           cookies
-           auth]
-    :or {method :get
-         as :string}
-    :as request-map}]
+  [^HttpClient client {:keys [url method query-string form-params headers body
+                  content-type
+                  accept
+                  as
+                  timeout]
+           :or {method :get
+                as :string}
+           :as request-map}]
   (let [ch (async/chan)
         content-ch (async/chan)
-        opt-client (:client request-map)
-        ^HttpClient cl (or opt-client (client request-map))
-        request ^Request (.newRequest cl ^String url)]
+        request ^Request (.newRequest client ^String url)]
 
     (when timeout
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))
@@ -247,82 +241,68 @@
     (doseq [[k v] query-string]
       (.param request (name k) v))
 
-    ;; don't do this again if we had no client supplied, as it's been
-    ;; done already upstream
-    (when (:client request-map)
-      (when cookies
-        (set-cookies! cl url cookies))
+    (.onResponseContent request
+                        (reify Response$ContentListener
+                          (onContent [this response bytebuffer]
+                            (async/put! content-ch (decode-body bytebuffer as)))))
 
-      (when auth
-        (set-auth! cl url auth)))
+    (.onComplete request
+                 (reify Response$CompleteListener
+                   (onComplete [this result]
+                     (async/close! content-ch)
+                     (async/put! ch
+                                 (if (.isSucceeded ^Result result)
+                                   (result->response result content-ch)
+                                   {:error result}))
+                     (async/close! ch))))
 
-    (-> request
-        (.onResponseContent
-         (reify Response$ContentListener
-           (onContent [this response bytebuffer]
-             (async/put! content-ch (decode-body bytebuffer as)))))
-
-        (.send
-         (reify Response$CompleteListener
-           (onComplete [this result]
-             (async/close! content-ch)
-             (async/put! ch
-                         (if (.isSucceeded ^Result result)
-                           (result->response result content-ch)
-                           {:error result}))
-             (async/close! ch)
-             (when-not opt-client
-               (.stop cl))))))
+    (.send request)
     ch))
 
 (defn get
-  ([url request-map]
-     (request (into {:method :get :url url}
+  ([client url request-map]
+     (request client
+              (into {:method :get :url url}
                     request-map)))
-  ([url]
-     (get url {})))
+  ([client url]
+     (get client url {})))
 
 (defn post
-  ([url request-map]
-     (request (into {:method :post :url url}
+  ([client url request-map]
+     (request client
+              (into {:method :post :url url}
                     request-map)))
-  ([url]
-     (post url {})))
+  ([client url]
+     (post client url {})))
 
 (defn put
-  ([url request-map]
-     (request (into {:method :put :url url}
+  ([client url request-map]
+     (request client
+              (into {:method :put :url url}
                     request-map)))
-  ([url]
-     (put url {})))
+  ([client url]
+     (put client url {})))
 
 (defn delete
-  ([url request-map]
-     (request (into {:method :delete :url url}
+  ([client url request-map]
+     (request client
+              (into {:method :delete :url url}
                     request-map)))
-  ([url]
-     (delete url {})))
+  ([client url]
+     (delete client url {})))
 
 (defn head
-  ([url request-map]
-     (request (into {:method :head :url url}
+  ([client url request-map]
+     (request client
+              (into {:method :head :url url}
                     request-map)))
-  ([url]
-     (head url {})))
+  ([client url]
+     (head client url {})))
 
 (defn trace
-  ([url request-map]
-     (request (into {:method :trace :url url}
+  ([client url request-map]
+     (request client
+              (into {:method :trace :url url}
                     request-map)))
-  ([url]
-     (trace url {})))
-
-;; (def c (client {:url "http://graph.facebook.com/zuck"}))
-
-;; (time (async/<!! (get "http://graph.facebook.com/zuck" ;; {:client c}
-;;                       )))
-
-;; (clojure.pprint/pprint (-> (get "http://graph.facebook.com/zuck")
-;;          async/<!!
-
-;;          ))
+  ([client url]
+     (trace client url {})))

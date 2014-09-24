@@ -2,13 +2,7 @@
   (:require [clojure.string :as str])
   (:import
    (java.net URI)
-   (java.net HttpCookie)
-   (org.eclipse.jetty.util HttpCookieStore)))
-
-(defn ^HttpCookieStore cookie-store
-  "Initializes an empty HttpCookieStore"
-  []
-  (HttpCookieStore.))
+   (java.net HttpCookie CookieStore)))
 
 (defn ^:no-doc decode-cookie
   [^HttpCookie cookie]
@@ -55,14 +49,14 @@
 
 (defn get-cookies
   "Returns a sequence of all cookies form the store, or per URI"
-  ([^HttpCookieStore cookie-store uri]
+  ([^CookieStore cookie-store uri]
      (map decode-cookie (.get cookie-store (URI. uri))))
-  ([^HttpCookieStore cookie-store]
+  ([^CookieStore cookie-store]
      (map decode-cookie (.getCookies cookie-store))))
 
 (defn add-cookies!
   "Adds cookies for a destination URI to the cookie store"
-  [^HttpCookieStore cookie-store uri cookies]
+  [^CookieStore cookie-store uri cookies]
   (let [uri (URI. uri)]
     (doseq [cookie cookies]
       (.add cookie-store uri (encode-cookie cookie)))
@@ -70,7 +64,7 @@
 
 (defn add-cookie!
   "Adds a single cookie for a destination URI to the cookie store"
-  [^HttpCookieStore cookie-store uri cookie]
+  [^CookieStore cookie-store uri cookie]
   (add-cookies! cookie-store uri [cookie]))
 
 ;; (-> (cookie-store)

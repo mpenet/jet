@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0
+
+* HTTP client api overhaul, all http calls now take a mandatory client
+  argument, following the "browser model" behind jetty9 client API.
+
 ## 0.4.2
 
 * HTTP client would leak jetty Clients after each requests.  Note:
