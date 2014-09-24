@@ -198,7 +198,6 @@
        (.setFollowRedirects client follow-redirects?)
        (.setStrictEventOrdering client strict-event-ordering?)
        (.setTCPNoDelay client tcp-no-delay?)
-
        (.start client)
        client))
   ([] (client {})))
@@ -270,7 +269,9 @@
                          (if (.isSucceeded ^Result result)
                            (result->response result content-ch)
                            {:error result}))
-             (async/close! ch)))))
+             (async/close! ch)
+             (when-not (:client request-map)
+               (.stop cl))))))
     ch))
 
 (defn get
