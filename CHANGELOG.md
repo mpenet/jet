@@ -1,9 +1,10 @@
 # Changelog
 
-## 0.5.0
+## 0.5.0 *Major bug in HTTP client* Please update!
 
 * HTTP client api overhaul, all http calls now take a mandatory client
   argument, following the "browser model" behind jetty9 client API.
+  This also fixes a file descriptor leak from  0.4.0*.
 
 * HTTP client now puts response headers as soon as headers come in.
 
