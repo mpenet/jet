@@ -5,6 +5,8 @@
 * HTTP client api overhaul, all http calls now take a mandatory client
   argument, following the "browser model" behind jetty9 client API.
 
+* HTTP client now puts response headers as soon as headers come in.
+
 ## 0.4.2
 
 * HTTP client would leak jetty Clients after each requests.  Note:

@@ -27,6 +27,7 @@
     Request$FailureListener
     Response$CompleteListener
     Response$ContentListener
+    Response$HeadersListener
     Request
     ;; Response
     Result)
@@ -243,16 +244,24 @@
                           (onContent [this response bytebuffer]
                             (async/put! content-ch (decode-body bytebuffer as)))))
 
+    (.onResponseHeaders request
+                        (reify Response$HeadersListener
+                          (onHeaders [this response]
+                            (async/put! ch
+                                        (Response. (.getStatus response)
+                                                   (reduce (fn [m ^HttpField h]
+                                                             (assoc m (string/lower-case (.getName h)) (.getValue h)))
+                                                           {}
+                                                           ^HttpFields (.getHeaders response))
+                                                   content-ch)))))
+
     (.onComplete request
                  (reify Response$CompleteListener
                    (onComplete [this result]
+                     (if (not (.isSucceeded ^Result result))
+                       (async/put! ch {:error result}))
                      (async/close! content-ch)
-                     (async/put! ch
-                                 (if (.isSucceeded ^Result result)
-                                   (result->response result content-ch)
-                                   {:error result}))
                      (async/close! ch))))
-
     (.send request)
     ch))
 
