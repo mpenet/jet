@@ -1,4 +1,4 @@
-(defproject cc.qbits/jet "0.5.0-alpha2"
+(defproject cc.qbits/jet "0.5.0-alpha3"
   :description ""
   :url "https://github.com/mpenet/jet"
   :license {:name "Eclipse Public License"

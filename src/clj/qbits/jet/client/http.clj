@@ -255,14 +255,13 @@
                                                            ^HttpFields (.getHeaders response))
                                                    content-ch)))))
 
-    (.onComplete request
-                 (reify Response$CompleteListener
-                   (onComplete [this result]
-                     (if (not (.isSucceeded ^Result result))
-                       (async/put! ch {:error result}))
-                     (async/close! content-ch)
-                     (async/close! ch))))
-    (.send request)
+    (.send request
+           (reify Response$CompleteListener
+             (onComplete [this result]
+               (if (not (.isSucceeded ^Result result))
+                 (async/put! ch {:error result}))
+               (async/close! content-ch)
+               (async/close! ch))))
     ch))
 
 (defn get
