@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0-beta1
+
+* increase default buffer-size for response/request to 4M (same as http-kit).
+
 ## 0.5.0 *Major bug in HTTP client* Please update!
 
 * HTTP client api overhaul, all http calls now take a mandatory client

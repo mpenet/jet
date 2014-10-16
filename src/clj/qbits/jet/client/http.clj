@@ -36,6 +36,8 @@
    (java.io ByteArrayInputStream)
    (clojure.lang Keyword Sequential)))
 
+(def default-buffer-size (* 1024 1024 4))
+
 (defn ^:no-doc byte-buffer->bytes
   [^ByteBuffer bb]
   (let [ba (byte-array (.remaining bb))]
@@ -59,14 +61,14 @@
 (defrecord Response [status headers body])
 
 (defn ^:no-doc result->response
-  [^Result result content-ch]
+  [^Result result body-ch]
   (let [response (.getResponse result)]
     (Response. (.getStatus response)
                (reduce (fn [m ^HttpField h]
                          (assoc m (string/lower-case  (.getName h)) (.getValue h)))
                        {}
                        ^HttpFields (.getHeaders response))
-               content-ch)))
+               body-ch)))
 
 (defprotocol PRequest
   (encode-body [x])
@@ -144,7 +146,9 @@
           follow-redirects? true
           tcp-no-delay? true
           strict-event-ordering? false
-          ssl-context-factory ssl/insecure-ssl-context-factory}
+          ssl-context-factory ssl/insecure-ssl-context-factory
+          request-buffer-size default-buffer-size
+          response-buffer-size default-buffer-size}
      :as r}]
      (let [client (HttpClient. ssl-context-factory)]
 
@@ -208,7 +212,7 @@
          as :string}
     :as request-map}]
   (let [ch (async/chan)
-        content-ch (async/chan)
+        body-ch (async/chan)
         request ^Request (.newRequest client ^String url)]
 
     (when timeout
@@ -242,7 +246,7 @@
     (.onResponseContent request
                         (reify Response$ContentListener
                           (onContent [this response bytebuffer]
-                            (async/put! content-ch (decode-body bytebuffer as)))))
+                            (async/put! body-ch (decode-body bytebuffer as)))))
 
     (.onResponseHeaders request
                         (reify Response$HeadersListener
@@ -253,14 +257,14 @@
                                                              (assoc m (string/lower-case (.getName h)) (.getValue h)))
                                                            {}
                                                            ^HttpFields (.getHeaders response))
-                                                   content-ch)))))
+                                                   body-ch)))))
 
     (.send request
            (reify Response$CompleteListener
              (onComplete [this result]
                (if (not (.isSucceeded ^Result result))
                  (async/put! ch {:error result}))
-               (async/close! content-ch)
+               (async/close! body-ch)
                (async/close! ch))))
     ch))
 
