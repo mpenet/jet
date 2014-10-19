@@ -17,6 +17,9 @@
 (def base-url (str "http://localhost:" port))
 (def client (http/client))
 
+(def num-chunk 2048)
+(def chunk-interval-ms 5)
+
 (defn hello-world [request]
   {:status  200
    :headers {"Content-Type" "text/plain"}
@@ -44,24 +47,25 @@
     ch))
 
 (defn async-handler+chunked-body [request]
-  (let [ch (async/chan)]
+  (let [ch (async/chan)
+        body-ch (async/chan)]
     (async/go
-      (async/<! (async/timeout 1000))
+      (async/<! (async/timeout chunk-interval-ms))
       (async/>! ch
-                {:body (let [ch (async/chan)]
-                         (async/go (async/>! ch "foo")
-                                   (async/>! ch "bar")
-                                   (async/close! ch))
-                         ch)
+                {:body body-ch
                  :headers {"Content-Type" "foo"}
-                 :status 202}))
+                 :status 202})
+      (dotimes [i num-chunk]
+        (async/<! (async/timeout chunk-interval-ms))
+        (async/>! body-ch (str i)))
+      (async/close! body-ch))
     ch))
 
 (defn chunked-handler [request]
   (let [ch (async/chan 1)]
     (async/go
-      (dotimes [i 5]
-        (async/<! (async/timeout 300))
+      (dotimes [i num-chunk]
+        (async/<! (async/timeout chunk-interval-ms))
         (async/>! ch (str i)))
       (async/close! ch))
     {:body ch
@@ -71,7 +75,6 @@
 (defn request-map->edn
   [response]
   (-> response (get-in [:headers "request-map"]) read-string))
-
 
 (defmacro with-server [options & body]
   `(let [server# (run-jetty (-> (assoc ~options :join? false)
@@ -174,17 +177,13 @@
           (is (= (:server-port request-map) port))
           (is (= (:ssl-client-cert request-map) nil))))))
 
-
   (testing "chunked response"
     (with-server {:ring-handler chunked-handler
                   :port port}
       (let [response (async/<!! (http/get client base-url))]
         (is (= (:status response) 201))
-        (is (= (-> response :body async/<!!) "0"))
-        (is (= (-> response :body async/<!!) "1"))
-        (is (= (-> response :body async/<!!) "2"))
-        (is (= (-> response :body async/<!!) "3"))
-        (is (= (-> response :body async/<!!) "4"))
+        (dotimes [i num-chunk]
+          (is (= (-> response :body async/<!!) (str i))))
         (is (= (-> response :body async/<!!) nil)))))
 
   (testing "async response"
@@ -199,8 +198,9 @@
       (let [response (async/<!! (http/get client base-url))
             body (:body response)]
         (is (= (:status response) 202))
-        (is (= "foo" (async/<!! body)))
-        (is (= "bar" (async/<!! body))))))
+        (dotimes [i num-chunk]
+          (is (= (str i) (async/<!! body))))
+        (is (nil? (async/<!! body))))))
 
   (testing "POST+PUT requests"
     (with-server {:ring-handler echo-handler :port port}
@@ -284,8 +284,3 @@
     (is (= "Content-Type: application/json; charset=UTF-8" (http/encode-content-type [:application/json "UTF-8"])))
     (is (= "Content-Type: application/json" (http/encode-content-type "application/json")))
     (is (= "Content-Type: application/json; charset=UTF-8" (http/encode-content-type ["application/json" "UTF-8"])))))
-
-
-
-
-;; (run-tests)
