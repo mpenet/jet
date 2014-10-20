@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0-beta2
+
+* HTTP server chunked transfers: close body channel when user disconnects
+
 ## 0.5.0-beta1
 
 * increase default buffer-size for response/request to 4M (same as http-kit).
