@@ -138,11 +138,17 @@
   (write-body! [ch ^HttpServletResponse response]
     (let [w (response->output-stream-writer response)]
       (async/go
-        (loop []
-          (if-let [x (async/<! ch)]
-            (do (write-body! x response)
-                (recur))
-            (.flushBuffer ^HttpServletResponse response))))))
+        (loop [state ::connected]
+          (let [x (async/<! ch)]
+            (if (and x (= state ::connected))
+              (recur
+               (try
+                 (write-body! x response)
+                 state
+                 (catch Exception e
+                   ::disconnected)))
+              (when (= ::connected state)
+                (.flushBuffer ^HttpServletResponse response))))))))
 
   nil
   (write-body! [body response]
