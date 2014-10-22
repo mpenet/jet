@@ -119,7 +119,7 @@
   (-write-stream! [n sw]
     (-write-stream! (str n) sw)))
 
-(def write-stream!
+(defn write-stream!
   [stream x]
   ;; where is flip when you need it!
   (-write-stream! x stream))
