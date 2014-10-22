@@ -106,6 +106,8 @@
   [^HttpServletResponse response]
   (-> response .getOutputStream OutputStreamWriter.))
 
+;; TODO: add another protocol for OutputStreamWritable
+
 (extend-protocol PBodyWritable
   String
   (write-body! [s ^HttpServletResponse response]
@@ -143,7 +145,8 @@
             (if (and x (= state ::connected))
               (recur
                (try
-                 (write-body! x response)
+                 (do (.write w x)
+                     (.flush w))
                  state
                  (catch Exception e
                    ::disconnected)))

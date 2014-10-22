@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0-beta3
+
+* improve perf/resource use when using channel as response :body
+  (chunked transfers)
+
 ## 0.5.0-beta2
 
 * HTTP server chunked transfers: close body channel when user disconnects
