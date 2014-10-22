@@ -106,21 +106,35 @@
   [^HttpServletResponse response]
   (-> response .getOutputStream OutputStreamWriter.))
 
-;; TODO: add another protocol for OutputStreamWritable
+(defprotocol OutputStreamWritable
+  (-write-stream! [x stream-writer]))
+
+(extend-protocol OutputStreamWritable
+  String
+  (-write-stream! [s sw]
+    (.write sw s)
+    (.flush sw))
+
+  Number
+  (-write-stream! [n sw]
+    (-write-stream! (str n) sw)))
+
+(def write-stream!
+  [stream x]
+  ;; where is flip when you need it!
+  (-write-stream! x stream))
 
 (extend-protocol PBodyWritable
   String
   (write-body! [s ^HttpServletResponse response]
     (let [w (response->output-stream-writer response)]
-      (.write w s)
-      (.flush w)))
+      (write-stream! w s)))
 
   clojure.lang.ISeq
   (write-body! [coll ^HttpServletResponse response]
     (let [w (response->output-stream-writer response)]
       (doseq [chunk coll]
-        (.write w (str chunk))
-        (.flush w))))
+        (write-stream! w chunk))))
 
   clojure.lang.Fn
   (write-body! [f ^HttpServletResponse response]
@@ -145,8 +159,7 @@
             (if (and x (= state ::connected))
               (recur
                (try
-                 (do (.write w x)
-                     (.flush w))
+                 (write-stream! x w)
                  state
                  (catch Exception e
                    ::disconnected)))
