@@ -159,7 +159,7 @@
             (if (and x (= state ::connected))
               (recur
                (try
-                 (write-stream! x w)
+                 (write-stream! w x)
                  state
                  (catch Exception e
                    ::disconnected)))
