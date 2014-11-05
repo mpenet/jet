@@ -1,4 +1,4 @@
-(defproject cc.qbits/jet "0.5.0-beta3"
+(defproject cc.qbits/jet "0.5.0-beta4"
   :description ""
   :url "https://github.com/mpenet/jet"
   :license {:name "Eclipse Public License"
@@ -6,10 +6,10 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.eclipse.jetty/jetty-server "9.2.3.v20140905"]
-                 [org.eclipse.jetty.websocket/websocket-server "9.2.3.v20140905"]
-                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.3.v20140905"]
-                 [org.eclipse.jetty.websocket/websocket-client "9.2.3.v20140905"]
-                 [org.eclipse.jetty/jetty-client "9.2.3.v20140905"]
+                 [org.eclipse.jetty.websocket/websocket-server "9.2.4.v20141103"]
+                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.4.v20141103"]
+                 [org.eclipse.jetty.websocket/websocket-client "9.2.4.v20141103"]
+                 [org.eclipse.jetty/jetty-client "9.2.4.v20141103"]
                  [cheshire "5.3.1"]]
   :repositories {"sonatype" {:url "http://oss.sonatype.org/content/repositories/releases"
                              :snapshots false

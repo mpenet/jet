@@ -2,6 +2,10 @@
 
 ## 0.5.0-beta3
 
+* use jetty-* 9.2.4.v20141103 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
+## 0.5.0-beta3
+
 * improve perf/resource use when using channel as response :body
   (chunked transfers)
 
