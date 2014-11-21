@@ -211,7 +211,7 @@
     :or {method :get
          as :string}
     :as request-map}]
-  (let [ch (async/chan)
+  (let [ch (async/chan 1)
         body-ch (async/chan)
         request ^Request (.newRequest client ^String url)]
 
