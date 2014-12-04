@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+* use jetty-* 9.2.5.v20141112 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.5.0-beta4
 
 * use jetty-* 9.2.4.v20141103 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
