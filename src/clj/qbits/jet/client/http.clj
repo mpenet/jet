@@ -263,7 +263,7 @@
            (reify Response$CompleteListener
              (onComplete [this result]
                (if (not (.isSucceeded ^Result result))
-                 (async/put! ch {:error result}))
+                 (async/put! ch {:error (.getFailure result)}))
                (async/close! body-ch)
                (async/close! ch))))
     ch))
