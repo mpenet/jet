@@ -111,7 +111,7 @@
 
 (extend-protocol OutputStreamWritable
   String
-  (-write-stream! [s sw]
+  (-write-stream! [s ^OutputStreamWriter sw]
     (.write sw s)
     (.flush sw))
 
