@@ -279,6 +279,22 @@
                            (deliver p true)))))
         (is (deref p 1000 false)))))
 
+  (testing "WebSocket ping-pong using :websockets"
+    (let [p       (promise)
+          handler (fn [{:keys [in out ctrl] :as request}]
+                    (async/go
+                      (when (= "PING" (async/<! in))
+                        (async/>! out "PONG"))))]
+      (with-server {:port port :websockets {"/" handler}}
+        (ws/connect! (str "ws://0.0.0.0:" port "/app?foo=bar")
+                     (fn [{:keys [in out ctrl]}]
+                       (async/go
+                         (async/>! out "PING")
+                         (when (= "PONG" (async/<! in))
+                           (async/close! out)
+                           (deliver p true)))))
+        (is (deref p 1000 false)))))
+
   (testing "content-type encoding"
     (is (= "Content-Type: application/json" (http/encode-content-type :application/json)))
     (is (= "Content-Type: application/json; charset=UTF-8" (http/encode-content-type [:application/json "UTF-8"])))

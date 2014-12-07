@@ -1,6 +1,6 @@
 (ns qbits.jet.server
   "Adapter for the Jetty 9 server, with websocket + core.async support.
-Derived from ring.adapter.jetty"
+  Derived from ring.adapter.jetty"
   (:require
    [qbits.jet.servlet :as servlet]
    [clojure.core.async :as async]
@@ -159,39 +159,38 @@ Derived from ring.adapter.jetty"
 
 (defn ^Server run-jetty
   "Start a Jetty webserver to serve the given handler according to the
-supplied options:
+  supplied options:
 
-
-* `:port` - the port to listen on (defaults to 80)
-* `:host` - the hostname to listen on
-* `:join?` - blocks the thread until server ends (defaults to true)
-* `:daemon?` - use daemon threads (defaults to false)
-* `:ssl?` - allow connections over HTTPS
-* `:ssl-port` - the SSL port to listen on (defaults to 443, implies :ssl?)
-* `:keystore` - the keystore to use for SSL connections
-* `:keystore-type` - the format of keystore
-* `:key-password` - the password to the keystore
-* `:truststore` - a truststore to use for SSL connections
-* `:truststore-type` - the format of trust store
-* `:trust-password` - the password to the truststore
-* `:max-threads` - the maximum number of threads to use (default 50)
-* `:max-idle-time`  - the maximum idle time in milliseconds for a connection (default 200000)
-* `:ws-max-idle-time`  - the maximum idle time in milliseconds for a websocket connection (default 500000)
-* `:client-auth` - SSL client certificate authenticate, may be set to :need, :want or :none (defaults to :none)
-* `:output-buffer-size` - (default 32768)
-* `:request-header-size` - (default 8192)
-* `:response-header-size` - (default 8192)
-* `:send-server-version?` - (default true)
-* `:send-date-header?` - (default false)
-* `:header-cache-size` - (default 512)
-* `:websocket-handler` - a handler function that will receive a RING request map with the following keys added:
-
+  * `:port` - the port to listen on (defaults to 80)
+  * `:host` - the hostname to listen on
+  * `:join?` - blocks the thread until server ends (defaults to true)
+  * `:daemon?` - use daemon threads (defaults to false)
+  * `:ssl?` - allow connections over HTTPS
+  * `:ssl-port` - the SSL port to listen on (defaults to 443, implies :ssl?)
+  * `:keystore` - the keystore to use for SSL connections
+  * `:keystore-type` - the format of keystore
+  * `:key-password` - the password to the keystore
+  * `:truststore` - a truststore to use for SSL connections
+  * `:truststore-type` - the format of trust store
+  * `:trust-password` - the password to the truststore
+  * `:max-threads` - the maximum number of threads to use (default 50)
+  * `:max-idle-time`  - the maximum idle time in milliseconds for a connection (default 200000)
+  * `:ws-max-idle-time`  - the maximum idle time in milliseconds for a websocket connection (default 500000)
+  * `:client-auth` - SSL client certificate authenticate, may be set to :need, :want or :none (defaults to :none)
+  * `:output-buffer-size` - (default 32768)
+  * `:request-header-size` - (default 8192)
+  * `:response-header-size` - (default 8192)
+  * `:send-server-version?` - (default true)
+  * `:send-date-header?` - (default false)
+  * `:header-cache-size` - (default 512)
+  * `:websocket-handler` - a handler function that will receive a RING request map with the following keys added:
     * `:in`: core.async chan that receives data sent by the client
     * `:out`: core async chan you can use to send data to client
     * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`
-"
+  * `:websockets - a hash map of path with websocket-handler
+  "
   [{:as options
-    :keys [websocket-handler ring-handler
+    :keys [websocket-handler ring-handler websockets
            max-threads min-threads configurator join?]
     :or {max-threads 50
          min-threads 8
@@ -207,8 +206,13 @@ supplied options:
     (when ring-handler
       (.addHandler hs (make-handler ring-handler options)))
 
-    (.setHandler s hs)
+    (when websockets
+      (doseq [[path wshandler] websockets]
+        (.addHandler hs (doto (ContextHandler.)
+                          (.setContextPath path)
+                          (.setHandler (make-ws-handler wshandler options))))))
 
+    (.setHandler s hs)
     (when-let [c configurator]
       (c s))
     (.start s)
