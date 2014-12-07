@@ -187,9 +187,10 @@
     * `:in`: core.async chan that receives data sent by the client
     * `:out`: core async chan you can use to send data to client
     * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`
+  * `:websockets - a hash map of path with websocket-handler
   "
   [{:as options
-    :keys [websocket-handler ring-handler
+    :keys [websocket-handler ring-handler websockets
            max-threads min-threads configurator join?]
     :or {max-threads 50
          min-threads 8
@@ -205,8 +206,13 @@
     (when ring-handler
       (.addHandler hs (make-handler ring-handler options)))
 
-    (.setHandler s hs)
+    (when websockets
+      (doseq [[path wshandler] websockets]
+        (.addHandler hs (doto (ContextHandler.)
+                          (.setContextPath path)
+                          (.setHandler (make-ws-handler wshandler options))))))
 
+    (.setHandler s hs)
     (when-let [c configurator]
       (c s))
     (.start s)
