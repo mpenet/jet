@@ -207,19 +207,31 @@
            content-type
            accept
            as
-           timeout]
+           idle-timeout
+           timeout
+           agent
+           follow-redirects?]
     :or {method :get
-         as :string}
+         as :string
+         follow-redirects? true}
     :as request-map}]
   (let [ch (async/chan 1)
         body-ch (async/chan)
         request ^Request (.newRequest client ^String url)]
 
+    (.followRedirects request follow-redirects?)
+
     (when timeout
       (.timeout request (long timeout) TimeUnit/MILLISECONDS))
 
+    (when idle-timeout
+      (.idleTimeout request (long idle-timeout) TimeUnit/MILLISECONDS))
+
     (when accept
       (.accept request (into-array String [(name accept)])))
+
+    (when agent
+      (.agent request agent))
 
     (.method request (name method))
 
