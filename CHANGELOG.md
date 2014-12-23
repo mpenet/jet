@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+
+* use jetty-* 9.2.6.v20141205 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.5.1
 
 * better error reporting in http client
