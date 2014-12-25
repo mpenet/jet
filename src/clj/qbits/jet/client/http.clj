@@ -33,7 +33,9 @@
     Result)
    (java.util.concurrent TimeUnit)
    (java.nio ByteBuffer)
-   (java.io ByteArrayInputStream)
+   (java.io
+    ByteArrayInputStream
+    ByteArrayOutputStream)
    (clojure.lang Keyword Sequential)))
 
 (def default-buffer-size (* 1024 1024 4))
@@ -57,6 +59,29 @@
     :json-str (json/parse-string (byte-buffer->string bb) false)
     :xml (xml/parse (ByteArrayInputStream. (byte-buffer->bytes bb)))
     bb))
+
+(defn fold-chunks+decode-xform [as]
+  (fn [reduction-function]
+    (let [ba (ByteArrayOutputStream.)]
+      (fn
+        ([]
+         (reduction-function))
+        ([result]
+         (reduction-function result (decode-body (ByteBuffer/wrap (.toByteArray ba))
+                                          as)))
+        ([result chunk]
+         (.write ba (byte-buffer->bytes chunk)))))))
+
+(defn decode-chunk-xform
+  [as]
+  (fn [reduction-function]
+    (fn
+      ([]
+       (reduction-function))
+      ([result]
+       (reduction-function result))
+      ([result chunk]
+       (reduction-function result (decode-body chunk as))))))
 
 (defrecord Response [status headers body])
 
@@ -150,51 +175,51 @@
           request-buffer-size default-buffer-size
           response-buffer-size default-buffer-size}
      :as r}]
-     (let [client (HttpClient. ssl-context-factory)]
+   (let [client (HttpClient. ssl-context-factory)]
 
-       (when address-resolution-timeout
-         (.setAddressResolutionTimeout client (long address-resolution-timeout)))
+     (when address-resolution-timeout
+       (.setAddressResolutionTimeout client (long address-resolution-timeout)))
 
-       (when connect-timeout
-         (.setConnectTimeout client (long connect-timeout)))
+     (when connect-timeout
+       (.setConnectTimeout client (long connect-timeout)))
 
-       (when max-redirects
-         (.setMaxRedirects client (int max-redirects)))
+     (when max-redirects
+       (.setMaxRedirects client (int max-redirects)))
 
-       (when idle-timeout
-         (.setIdleTimeout client (long idle-timeout)))
+     (when idle-timeout
+       (.setIdleTimeout client (long idle-timeout)))
 
-       (when max-connections-per-destination
-         (.setMaxConnectionsPerDestination client (int max-connections-per-destination)))
+     (when max-connections-per-destination
+       (.setMaxConnectionsPerDestination client (int max-connections-per-destination)))
 
-       (when max-requests-queued-per-destination
-         (.setMaxRequestsQueuedPerDestination client (int max-requests-queued-per-destination)))
+     (when max-requests-queued-per-destination
+       (.setMaxRequestsQueuedPerDestination client (int max-requests-queued-per-destination)))
 
-       (when request-buffer-size
-         (.setRequestBufferSize client (int request-buffer-size)))
+     (when request-buffer-size
+       (.setRequestBufferSize client (int request-buffer-size)))
 
-       (when response-buffer-size
-         (.setResponseBufferSize client (int response-buffer-size)))
+     (when response-buffer-size
+       (.setResponseBufferSize client (int response-buffer-size)))
 
-       (when scheduler
-         (.setScheduler client scheduler))
+     (when scheduler
+       (.setScheduler client scheduler))
 
-       (when user-agent
-         (.setUserAgentField client (HttpField. "User-Agent" ^String user-agent)))
+     (when user-agent
+       (.setUserAgentField client (HttpField. "User-Agent" ^String user-agent)))
 
-       (when stop-timeout
-         (.setStopTimeout client (long stop-timeout)))
+     (when stop-timeout
+       (.setStopTimeout client (long stop-timeout)))
 
-       (when cookie-store
-         (.setCookieStore client cookie-store))
+     (when cookie-store
+       (.setCookieStore client cookie-store))
 
-       (.setRemoveIdleDestinations client remove-idle-destinations?)
-       (.setDispatchIO client dispatch-io?)
-       (.setFollowRedirects client follow-redirects?)
-       (.setStrictEventOrdering client strict-event-ordering?)
-       (.setTCPNoDelay client tcp-no-delay?)
-       (.start client)
-       client))
+     (.setRemoveIdleDestinations client remove-idle-destinations?)
+     (.setDispatchIO client dispatch-io?)
+     (.setFollowRedirects client follow-redirects?)
+     (.setStrictEventOrdering client strict-event-ordering?)
+     (.setTCPNoDelay client tcp-no-delay?)
+     (.start client)
+     client))
   ([] (client {})))
 
 (defn stop-client!
@@ -210,13 +235,17 @@
            idle-timeout
            timeout
            agent
-           follow-redirects?]
+           follow-redirects?
+           fold-chunked-response?]
     :or {method :get
          as :string
          follow-redirects? true}
     :as request-map}]
   (let [ch (async/chan 1)
-        body-ch (async/chan)
+        body-ch (async/chan 1
+                            (if fold-chunked-response?
+                              (fold-chunks+decode-xform as)
+                              (decode-chunk-xform as)))
         request ^Request (.newRequest client ^String url)]
 
     (.followRedirects request follow-redirects?)
@@ -258,7 +287,7 @@
     (.onResponseContent request
                         (reify Response$ContentListener
                           (onContent [this response bytebuffer]
-                            (async/put! body-ch (decode-body bytebuffer as)))))
+                            (async/put! body-ch bytebuffer))))
 
     (.onResponseHeaders request
                         (reify Response$HeadersListener
@@ -282,48 +311,48 @@
 
 (defn get
   ([client url request-map]
-     (request client
-              (into {:method :get :url url}
-                    request-map)))
+   (request client
+            (into {:method :get :url url}
+                  request-map)))
   ([client url]
-     (get client url {})))
+   (get client url {})))
 
 (defn post
   ([client url request-map]
-     (request client
-              (into {:method :post :url url}
-                    request-map)))
+   (request client
+            (into {:method :post :url url}
+                  request-map)))
   ([client url]
-     (post client url {})))
+   (post client url {})))
 
 (defn put
   ([client url request-map]
-     (request client
-              (into {:method :put :url url}
-                    request-map)))
+   (request client
+            (into {:method :put :url url}
+                  request-map)))
   ([client url]
-     (put client url {})))
+   (put client url {})))
 
 (defn delete
   ([client url request-map]
-     (request client
-              (into {:method :delete :url url}
-                    request-map)))
+   (request client
+            (into {:method :delete :url url}
+                  request-map)))
   ([client url]
-     (delete client url {})))
+   (delete client url {})))
 
 (defn head
   ([client url request-map]
-     (request client
-              (into {:method :head :url url}
-                    request-map)))
+   (request client
+            (into {:method :head :url url}
+                  request-map)))
   ([client url]
-     (head client url {})))
+   (head client url {})))
 
 (defn trace
   ([client url request-map]
-     (request client
-              (into {:method :trace :url url}
-                    request-map)))
+   (request client
+            (into {:method :trace :url url}
+                  request-map)))
   ([client url]
-     (trace client url {})))
+   (trace client url {})))
