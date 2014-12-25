@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.3
+
+* HTTP client: When passing `:fold-chunked-response? true` the body
+channel will contain a single value that will only be decoded after
+accumulation of all the chunks. This makes working with `:as :json` on
+a server which returns chunked response easier (ex; ElasticSearch).
+
+Backward compatible change
+
 ## 0.5.2
 
 * use jetty-* 9.2.6.v20141205 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
