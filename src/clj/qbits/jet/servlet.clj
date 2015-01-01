@@ -90,7 +90,10 @@
       (.setHeader response key val-or-vals)
       (doseq [val val-or-vals]
         (.addHeader response key val))))
-                                        ; Some headers must be set through specific methods
+  ;; Some headers must be set through specific methods
+  (when-let [content-type (get headers "Content-Type")]
+    (.setContentType response content-type))
+
   (when-let [content-type (get headers "Content-Type")]
     (.setContentType response content-type)))
 

@@ -17,6 +17,7 @@
     StringContentProvider
     BytesContentProvider
     ByteBufferContentProvider
+    DeferredContentProvider
     InputStreamContentProvider
     PathContentProvider
     FormContentProvider)
@@ -94,16 +95,20 @@
                body-ch)))
 
 (defprotocol PRequest
+  (encode-chunk [x])
   (encode-body [x])
   (encode-content-type [x]))
 
 (extend-protocol PRequest
   (Class/forName "[B")
+  (encode-chunk [x]
+    (ByteBuffer/wrap x))
   (encode-body [ba]
     (BytesContentProvider.
      (into-array array-class [ba])))
 
   ByteBuffer
+  (encode-chunk [x] x)
   (encode-body [bb]
     (ByteBufferContentProvider. (into-array ByteBuffer [bb])))
 
@@ -116,18 +121,39 @@
     (InputStreamContentProvider. s))
 
   String
+  (encode-chunk [x]
+    (ByteBuffer/wrap (.getBytes x "UTF-8")))
   (encode-body [x]
     (StringContentProvider. x "UTF-8"))
   (encode-content-type [x]
     (str "Content-Type: " x))
 
+  Number
+  (encode-chunk [x] (encode-chunk (str x)))
+  (encode-body [x] (encode-body (str x)))
+
   Sequential
   (encode-content-type [[content-type charset]]
     (str (encode-content-type content-type) "; charset=" (name charset)))
 
+  clojure.core.async.impl.channels.ManyToManyChannel
+  (encode-body [ch]
+    (let [cp (DeferredContentProvider. (into-array ByteBuffer nil))]
+      (async/go
+        (loop []
+          (if-let [chunk (async/<! ch)]
+            (do (.offer ^DeferredContentProvider cp
+                        (encode-chunk chunk))
+                (.flush cp)
+                (recur))
+            (.close ^DeferredContentProvider cp))))
+      cp))
+
   Object
+  (encode-chunk [x]
+    (throw (ex-info "Chunk type no supported by encoder")))
   (encode-body [x]
-    (throw (ex-info "Body content no supported by encoder")))
+    (throw (ex-info "Body type no supported by encoder")))
   (encode-content-type [content-type]
     (encode-content-type (subs (str content-type) 1))))
 

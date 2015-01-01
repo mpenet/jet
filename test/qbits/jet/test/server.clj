@@ -214,7 +214,16 @@
       (let [response (async/<!! (http/put client base-url
                                           {:form-params {:foo "bar"}}))
             request-map (request-map->edn response)]
-        (is (= "bar" (get-in request-map [:form-params "foo"]))))))
+        (is (= "bar" (get-in request-map [:form-params "foo"]))))
+
+    (let [body-ch (async/chan 2)
+          _ (async/>!! body-ch "bar")
+          _ (async/>!! body-ch "baz")
+          _ (async/close! body-ch)
+          response (http/post client base-url
+                              {:body body-ch})
+          body (:body (async/<!! response))]
+      (is (= "barbaz" (async/<!! body))))))
 
   (testing "HEAD+DELETE+TRACE requests"
     (with-server {:port port :ring-handler echo-handler}
