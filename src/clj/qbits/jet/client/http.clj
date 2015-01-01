@@ -38,9 +38,11 @@
     ByteArrayOutputStream)
    (clojure.lang Keyword Sequential)))
 
+(def ^:const array-class (class (clojure.core/byte-array 0)))
 (def default-buffer-size (* 1024 1024 4))
 
-(defn ^:no-doc byte-buffer->bytes
+(defn ^:no-doc ^array-class
+  byte-buffer->bytes
   [^ByteBuffer bb]
   (let [ba (byte-array (.remaining bb))]
     (.get bb ba)
@@ -64,8 +66,6 @@
   (fn [reduction-function]
     (let [ba (ByteArrayOutputStream.)]
       (fn
-        ([]
-         (reduction-function))
         ([result]
          (reduction-function result (decode-body (ByteBuffer/wrap (.toByteArray ba))
                                           as)))
@@ -76,8 +76,6 @@
   [as]
   (fn [reduction-function]
     (fn
-      ([]
-       (reduction-function))
       ([result]
        (reduction-function result))
       ([result chunk]
@@ -103,7 +101,7 @@
   (Class/forName "[B")
   (encode-body [ba]
     (BytesContentProvider.
-     (into-array (Class/forName "[B") [ba])))
+     (into-array array-class [ba])))
 
   ByteBuffer
   (encode-body [bb]
