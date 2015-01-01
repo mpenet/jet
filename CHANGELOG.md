@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4
+
+* HTTP client can now accept a core.async/chan as :body value that will be handled as a  [DeferredContentProvider](http://download.eclipse.org/jetty/9.2.6.v20141205/apidocs/org/eclipse/jetty/client/util/DeferredContentProvider.html)
+
 ## 0.5.3
 
 * HTTP client: When passing `:fold-chunked-response? true` the body

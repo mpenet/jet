@@ -144,7 +144,6 @@
           (if-let [chunk (async/<! ch)]
             (do (.offer ^DeferredContentProvider cp
                         (encode-chunk chunk))
-                (.flush cp)
                 (recur))
             (.close ^DeferredContentProvider cp))))
       cp))
