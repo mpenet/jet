@@ -21,7 +21,9 @@
   (remote ^RemoteEndpoint [this] "Remote endpoint instance")
   (session ^Session [this] "Session instance")
   (remote-addr [this] "Address of remote client")
-  (idle-timeout! [this ms] "Set idle timeout on client")
+  (idle-timeout! [this ms] "Set idle timeout on client"))
+
+(defprotocol ^:no-doc PBackPressure
   (suspend-reads! [this])
   (resume-reads! [this]))
 
@@ -113,13 +115,6 @@
     (async/put! ctrl [::close code reason])
     (close-chans! in out ctrl))
 
-  (suspend-reads! [this]
-    (set! reads-suspend-token (.suspend session)))
-
-  (resume-reads! [this]
-    (.resume reads-suspend-token)
-    (set! reads-suspend-token nil))
-
   (onWebSocketText [this message]
     (a/put! in message
             #(suspend-reads! this)
@@ -129,6 +124,14 @@
     (a/put! in (WebSocketBinaryFrame. payload offset len)
             #(suspend-reads! this)
             #(resume-reads! this)))
+
+  PBackPressure
+  (suspend-reads! [this]
+    (set! reads-suspend-token (.suspend session)))
+
+  (resume-reads! [this]
+    (.resume reads-suspend-token)
+    (set! reads-suspend-token nil))
 
   PWebSocket
   (remote [this]
