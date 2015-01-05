@@ -2,12 +2,14 @@
   "Shared by the server and the client impl"
   (:require
    [clojure.core.async :as async]
+   [qbits.jet.async :as a]
    [clojure.string :as string])
   (:import
    (org.eclipse.jetty.websocket.api
     WebSocketListener
     RemoteEndpoint
     Session
+    SuspendToken
     UpgradeRequest)
    (clojure.lang IFn)
    (java.nio ByteBuffer)
@@ -19,7 +21,9 @@
   (remote ^RemoteEndpoint [this] "Remote endpoint instance")
   (session ^Session [this] "Session instance")
   (remote-addr [this] "Address of remote client")
-  (idle-timeout! [this ms] "Set idle timeout on client"))
+  (idle-timeout! [this ms] "Set idle timeout on client")
+  (suspend-reads! [this])
+  (resume-reads! [this]))
 
 (defprotocol ^:no-doc WebSocketSend
   (-send! [x ^WebSocket ws] "How to encode content sent to the WebSocket clients"))
@@ -63,7 +67,8 @@
      ^ManyToManyChannel out
      ^ManyToManyChannel ctrl
      ^IFn handler
-     ^Session ^:volatile-mutable session]
+     ^Session ^:volatile-mutable session
+     ^SuspendToken ^:volatile-mutable reads-suspend-token]
 
   WebSocketListener
   (onWebSocketConnect [this s]
@@ -108,26 +113,43 @@
     (async/put! ctrl [::close code reason])
     (close-chans! in out ctrl))
 
+  (suspend-reads! [this]
+    (set! reads-suspend-token (.suspend session)))
+
+  (resume-reads! [this]
+    (.resume reads-suspend-token)
+    (set! reads-suspend-token nil))
+
   (onWebSocketText [this message]
-    (async/put! in message))
+    (a/put! in message
+            #(suspend-reads! this)
+            #(resume-reads! this)))
+
   (onWebSocketBinary [this payload offset len]
-    (async/put! in (WebSocketBinaryFrame. payload offset len)))
+    (a/put! in (WebSocketBinaryFrame. payload offset len)
+            #(suspend-reads! this)
+            #(resume-reads! this)))
 
   PWebSocket
   (remote [this]
     (when session
       (.getRemote session)))
+
   (session [this] session)
+
   (send! [this msg]
     (-send! msg this))
+
   (close! [this]
     (when (some-> session .isOpen)
       (.close session)))
+
   (remote-addr [this]
     (.getRemoteAddress session))
+
   (idle-timeout! [this ms]
     (.setIdleTimeout session (long ms))))
 
 (defn ^:no-doc make-websocket
   [in out ctrl handler]
-  (WebSocket. in out ctrl handler nil))
+  (WebSocket. in out ctrl handler nil nil))
