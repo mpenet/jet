@@ -25,6 +25,11 @@
    :headers {"Content-Type" "text/plain"}
    :body    "Hello World"})
 
+(defn json-handler [request]
+  {:status  200
+   :headers {"Content-Type" "application/json"}
+   :body    "{\"foo\": \"bar\"}"})
+
 (defn content-type-handler [content-type]
   (constantly
    {:status  200
@@ -239,11 +244,12 @@
 
 
   (testing "HTTP request :as"
-    (is (= "zuck" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json})
-                      async/<!! :body async/<!! :username)))
+    (with-server {:port port :ring-handler json-handler}
+      (is (= "bar" (-> (http/get client base-url {:as :json})
+                        async/<!! :body async/<!! :foo)))
 
-    (is (= "zuck" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json-str})
-                      async/<!! :body async/<!! (get "username")))))
+      (is (= "bar" (-> (http/get client base-url {:as :json-str})
+                        async/<!! :body async/<!! (get "foo"))))))
 
   (testing "cookies"
     (with-server {:ring-handler echo-handler :port port}

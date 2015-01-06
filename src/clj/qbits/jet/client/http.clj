@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [get])
   (:require
    [clojure.core.async :as async]
+   [qbits.jet.async :as a]
    [qbits.jet.client.ssl :as ssl]
    [qbits.jet.client.auth :as auth]
    [qbits.jet.client.cookies :as cookies]
@@ -142,8 +143,11 @@
       (async/go
         (loop []
           (if-let [chunk (async/<! ch)]
-            (do (.offer ^DeferredContentProvider cp
-                        (encode-chunk chunk))
+            (do (a/in-deferred d
+                               (.offer ^DeferredContentProvider cp
+                                          (encode-chunk chunk)
+                                          (a/callback d))
+                               (async/<! d))
                 (recur))
             (.close ^DeferredContentProvider cp))))
       cp))

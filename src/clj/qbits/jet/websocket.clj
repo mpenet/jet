@@ -10,7 +10,8 @@
     RemoteEndpoint
     Session
     SuspendToken
-    UpgradeRequest)
+    UpgradeRequest
+    WriteCallback)
    (clojure.lang IFn)
    (java.nio ByteBuffer)
    (clojure.core.async.impl.channels ManyToManyChannel)))
@@ -23,11 +24,11 @@
   (remote-addr [this] "Address of remote client")
   (idle-timeout! [this ms] "Set idle timeout on client"))
 
-(defprotocol ^:no-doc PBackPressure
+(defprotocol ^:no-doc BackPressure
   (suspend-reads! [this])
   (resume-reads! [this]))
 
-(defprotocol ^:no-doc WebSocketSend
+(defprotocol ^:no-doc PWebSocketSend
   (-send! [x ^WebSocket ws] "How to encode content sent to the WebSocket clients"))
 
 (defn ^:no-doc close-chans!
@@ -35,7 +36,15 @@
   (doseq [ch chs]
     (async/close! ch)))
 
-(extend-protocol WebSocketSend
+(defn write-callback
+  [ch]
+  (reify WriteCallback
+    (writeSuccess [this]
+      (async/put! ch ::success))
+    (writeFailed [this ex]
+      (async/put! ch ::failure))))
+
+(extend-protocol PWebSocketSend
 
   (Class/forName "[B")
   (-send! [ba ws]
@@ -43,24 +52,21 @@
 
   ByteBuffer
   (-send! [bb ws]
-    (some-> ws remote (.sendBytes ^ByteBuffer bb)))
+    (a/in-deferred ch
+      (some-> ws remote
+              (.sendBytes ^ByteBuffer bb (write-callback ch)))))
 
   String
   (-send! [s ws]
-    (some-> ws remote (.sendString ^String s)))
-
-  IFn
-  (-send! [f ws]
-    (some-> ws remote f))
+    (a/in-deferred ch
+      (some-> ws remote (.sendString ^String s (write-callback ch)))))
 
   Object
   (-send! [this ws]
-    (some-> ws remote (.sendString (str this))))
-
-  ;; "nil" could PING?
-  ;; nil
-  ;; (-send! [this ws] ()
-  )
+    (a/in-deferred ch
+      (some-> ws remote
+              (.sendString (str this)
+                           (write-callback ch))))))
 
 (defrecord WebSocketBinaryFrame [payload offset len])
 
@@ -77,14 +83,14 @@
     (set! session s)
     (async/go
       (loop []
+        ;; make sure the client got our last write before we try to write again
         ;; if we pull out of value of out, we send it and recur for
         ;; another one, otherwise that means the user closed it, in
         ;; that case we close the Socket (if not closed already)
         ;; and exit the loop.
         (if-let [x (async/<! out)]
-          (do
-            (send! this x)
-            (recur))
+          (do (async/<! (send! this x))
+              (recur))
           (close! this))))
     (let [request (.getUpgradeRequest s)
           uri (.getRequestURI request)
@@ -125,7 +131,7 @@
             #(suspend-reads! this)
             #(resume-reads! this)))
 
-  PBackPressure
+  BackPressure
   (suspend-reads! [this]
     (set! reads-suspend-token (.suspend session)))
 
