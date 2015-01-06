@@ -314,6 +314,8 @@
     (.onResponseContent request
                         (reify Response$ContentListener
                           (onContent [this response bytebuffer]
+                            ;; TODO: check if we can find a way to
+                            ;; suspend reads if the put is pending
                             (async/put! body-ch bytebuffer))))
 
     (.onResponseHeaders request
