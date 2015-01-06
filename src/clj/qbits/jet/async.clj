@@ -30,6 +30,6 @@
 
 (defmacro in-deferred
   [sym & body]
-  `(let [~sym (async/chan)]
+  `(let [~sym (async/chan 1)]
      ~@body
      ~sym))
