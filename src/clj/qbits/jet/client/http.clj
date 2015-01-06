@@ -313,9 +313,10 @@
     (.onResponseContentAsync request
                              (reify Response$AsyncContentListener
                                (onContent [this response bytebuffer callback]
-                                 (a/put! body-ch bytebuffer
-                                         identity identity
-                                         #(.succeeded callback)))))
+                                 (async/put! body-ch bytebuffer)
+                                 ;; todo: dont trigger succeeded if
+                                 ;; put! is hanging.
+                                 (.succeeded callback))))
 
     (.onResponseHeaders request
                         (reify Response$HeadersListener
