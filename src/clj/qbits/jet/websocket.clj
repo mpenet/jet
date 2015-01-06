@@ -25,8 +25,7 @@
   (idle-timeout! [this ms] "Set idle timeout on client"))
 
 (defprotocol ^:no-doc BackPressure
-  (suspend-reads! [this])
-  (resume-reads! [this]))
+  (backpressure! [this status]))
 
 (defprotocol ^:no-doc PWebSocketSend
   (-send! [x ^WebSocket ws] "How to encode content sent to the WebSocket clients"))
@@ -122,22 +121,19 @@
     (close-chans! in out ctrl))
 
   (onWebSocketText [this message]
-    (a/put! in message
-            #(suspend-reads! this)
-            #(resume-reads! this)))
+    (a/put! in message #(backpressure! this %)))
 
   (onWebSocketBinary [this payload offset len]
     (a/put! in (WebSocketBinaryFrame. payload offset len)
-            #(suspend-reads! this)
-            #(resume-reads! this)))
+            #(backpressure! this %)))
 
   BackPressure
-  (suspend-reads! [this]
-    (set! reads-suspend-token (.suspend session)))
-
-  (resume-reads! [this]
-    (.resume reads-suspend-token)
-    (set! reads-suspend-token nil))
+  (backpressure! [this backpressure?]
+    (if backpressure?
+      (set! reads-suspend-token (.suspend session))
+      (do
+        (.resume reads-suspend-token)
+        (set! reads-suspend-token nil))))
 
   PWebSocket
   (remote [this]
