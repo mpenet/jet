@@ -26,9 +26,8 @@
     HttpFields
     HttpField)
    (org.eclipse.jetty.client.api
-    Request$FailureListener
     Response$CompleteListener
-    Response$ContentListener
+    Response$AsyncContentListener
     Response$HeadersListener
     Request
     ;; Response
@@ -311,12 +310,12 @@
     (doseq [[k v] query-string]
       (.param request (name k) v))
 
-    (.onResponseContent request
-                        (reify Response$ContentListener
-                          (onContent [this response bytebuffer]
-                            ;; TODO: check if we can find a way to
-                            ;; suspend reads if the put is pending
-                            (async/put! body-ch bytebuffer))))
+    (.onResponseContentAsync request
+                             (reify Response$AsyncContentListener
+                               (onContent [this response bytebuffer callback]
+                                 (a/put! body-ch bytebuffer
+                                         identity identity
+                                         #(.succeeded callback)))))
 
     (.onResponseHeaders request
                         (reify Response$HeadersListener
@@ -324,7 +323,9 @@
                             (async/put! ch
                                         (Response. (.getStatus response)
                                                    (reduce (fn [m ^HttpField h]
-                                                             (assoc m (string/lower-case (.getName h)) (.getValue h)))
+                                                             (assoc m
+                                                                    (string/lower-case (.getName h))
+                                                                    (.getValue h)))
                                                            {}
                                                            ^HttpFields (.getHeaders response))
                                                    body-ch)))))
@@ -341,7 +342,7 @@
 (defn get
   ([client url request-map]
    (request client
-            (into {:method :get :url url}
+            (conj {:method :get :url url}
                   request-map)))
   ([client url]
    (get client url {})))
@@ -349,7 +350,7 @@
 (defn post
   ([client url request-map]
    (request client
-            (into {:method :post :url url}
+            (conj {:method :post :url url}
                   request-map)))
   ([client url]
    (post client url {})))
@@ -357,7 +358,7 @@
 (defn put
   ([client url request-map]
    (request client
-            (into {:method :put :url url}
+            (conj {:method :put :url url}
                   request-map)))
   ([client url]
    (put client url {})))
@@ -365,7 +366,7 @@
 (defn delete
   ([client url request-map]
    (request client
-            (into {:method :delete :url url}
+            (conj {:method :delete :url url}
                   request-map)))
   ([client url]
    (delete client url {})))
@@ -373,7 +374,7 @@
 (defn head
   ([client url request-map]
    (request client
-            (into {:method :head :url url}
+            (conj {:method :head :url url}
                   request-map)))
   ([client url]
    (head client url {})))
@@ -381,7 +382,7 @@
 (defn trace
   ([client url request-map]
    (request client
-            (into {:method :trace :url url}
+            (conj {:method :trace :url url}
                   request-map)))
   ([client url]
    (trace client url {})))
