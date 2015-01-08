@@ -30,9 +30,9 @@
   [deferred-ch]
   (reify Callback
     (succeeded [this]
-      (async/put! deferred-ch ::success))
+      (async/put! deferred-ch [::success]))
     (failed [this ex]
-      (async/put! deferred-ch ::failure))))
+      (async/put! deferred-ch [::failure ex]))))
 
 (defmacro in-deferred
   [sym & body]

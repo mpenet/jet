@@ -3,7 +3,8 @@
   (:require
    [clojure.java.io :as io]
    [clojure.string :as string]
-   [clojure.core.async :as async])
+   [clojure.core.async :as async]
+   [qbits.jet.async :as a])
   (:import
    (java.io
     File
@@ -12,11 +13,22 @@
     OutputStreamWriter)
    (javax.servlet
     AsyncContext
-    AsyncListener)
+    AsyncListener
+    ServletOutputStream)
+   (java.nio ByteBuffer)
+   (java.nio.channels  Channels)
+   (org.eclipse.jetty.server Response)
+   (org.eclipse.jetty.util Callback)
+   (javax.servlet WriteListener)
+   (org.eclipse.jetty.server
+    HttpOutput
+    Response
+    Request)
    (javax.servlet.http
     HttpServlet
-    HttpServletRequest
-    HttpServletResponse)))
+    ;; Request
+    HttpServletResponse
+    )))
 
 (defn chan?
   [x]
@@ -24,7 +36,7 @@
 
 (defn- get-headers
   "Creates a name/value map of all the request headers."
-  [^HttpServletRequest request]
+  [^Request request]
   (reduce
    (fn [headers ^String name]
      (assoc headers
@@ -37,18 +49,18 @@
 
 (defn- get-content-length
   "Returns the content length, or nil if there is no content."
-  [^HttpServletRequest request]
+  [^Request request]
   (let [length (.getContentLength request)]
     (if (>= length 0) length)))
 
 (defn- get-client-cert
   "Returns the SSL client certificate of the request, if one exists."
-  [^HttpServletRequest request]
+  [^Request request]
   (first (.getAttribute request "javax.servlet.request.X509Certificate")))
 
 (defn build-request-map
-  "Create the request map from the HttpServletRequest object."
-  [^HttpServletRequest request]
+  "Create the request map from the Request object."
+  [^Request request]
   {:server-port        (.getServerPort request)
    :server-name        (.getServerName request)
    :remote-addr        (.getRemoteAddr request)
@@ -68,8 +80,8 @@
   systems."
   [request-map
    ^HttpServlet servlet
-   ^HttpServletRequest request
-   ^HttpServletResponse response]
+   ^Request request
+   ^Response response]
   (merge request-map
          {:servlet              servlet
           :servlet-request      request
@@ -78,12 +90,12 @@
           :servlet-context-path (.getContextPath request)}))
 
 (defn- set-status!
-  "Update a HttpServletResponse with a status code."
-  [^HttpServletResponse response status]
+  "Update a Response with a status code."
+  [^Response response status]
   (.setStatus response status))
 
 (defn- set-headers!
-  "Update a HttpServletResponse with a map of headers."
+  "Update a Response with a map of headers."
   [^HttpServletResponse response headers]
   (doseq [[key val-or-vals] headers]
     (if (string? val-or-vals)
@@ -92,123 +104,136 @@
         (.addHeader response key val))))
   ;; Some headers must be set through specific methods
   (when-let [content-type (get headers "Content-Type")]
-    (.setContentType response content-type))
-
-  (when-let [content-type (get headers "Content-Type")]
     (.setContentType response content-type)))
 
 (defprotocol PBodyWritable
-  (write-body! [body response]))
+  (content [x])
+  (write-body-async! [x response deferred])
+  (write-body! [x response]))
 
 (defn set-response-body!
   [response body]
   (write-body! body response))
 
-(defn- response->output-stream-writer
-  ^OutputStreamWriter
-  [^HttpServletResponse response]
-  (-> response .getOutputStream OutputStreamWriter.))
-
-(defprotocol OutputStreamWritable
-  (-write-stream! [x stream-writer]))
-
-(extend-protocol OutputStreamWritable
-  String
-  (-write-stream! [s ^OutputStreamWriter sw]
-    (.write sw s)
-    (.flush sw))
-
-  Number
-  (-write-stream! [n sw]
-    (-write-stream! (str n) sw)))
-
-(defn write-stream!
-  [stream x]
-  ;; where is flip when you need it!
-  (-write-stream! x stream))
+(defn ^HttpOutput http-output
+  [^Response response]
+  (.getHttpOutput response))
 
 (extend-protocol PBodyWritable
   String
-  (write-body! [s ^HttpServletResponse response]
-    (let [w (response->output-stream-writer response)]
-      (write-stream! w s)))
+  (content [s]
+    (ByteBuffer/wrap (.getBytes s "UTF-8")))
+  (write-body! [s ^Response response]
+    (-> response http-output (.sendContent ^ByteBuffer (content s))))
+  (write-body-async! [s ^Response response deferred]
+    (.sendContent (http-output response)
+                  ^ByteBuffer (content s)
+                  ^Callback (a/callback deferred)))
 
   clojure.lang.ISeq
-  (write-body! [coll ^HttpServletResponse response]
-    (let [w (response->output-stream-writer response)]
+  (content [x]
+    x)
+  (write-body! [coll ^Response response]
+    (let [sw (-> response .getOutputStream OutputStreamWriter.)]
       (doseq [chunk coll]
-        (write-stream! w chunk))))
+        (.write sw (str chunk))
+        (.flush sw))))
 
-  clojure.lang.Fn
-  (write-body! [f ^HttpServletResponse response]
-    (f response))
+  (write-body-async! [s ^Response response deferred]
+    (.sendContent (http-output response)
+                  ^ByteBuffer (content s)
+                  ^Callback (a/callback deferred)))
 
   InputStream
-  (write-body! [stream ^HttpServletResponse response]
-    (with-open [^InputStream b stream]
-      (io/copy b (.getOutputStream response))))
-
+  (content [is] is)
+  (write-body! [is ^Response response]
+    (-> response .getHttpOutput (.sendContent ^InputStream is)))
+  (write-body-async! [is ^Response response deferred]
+    (.sendContent (http-output response)
+                  ^InputStream (content is)
+                  ^Callback (a/callback deferred)))
   File
-  (write-body! [file ^HttpServletResponse response]
-    (with-open [stream (FileInputStream. file)]
-      (write-body! stream response)))
+  (content [file]
+    (FileInputStream. file))
+  (write-body! [file ^Response response]
+    (-> response .getHttpOutput (.sendContent ^InputStream (content file))))
+  (write-body-async! [f ^Response response deferred]
+    (.sendContent (http-output response)
+                  ^InputStream (content f)
+                  ^Callback (a/callback deferred)))
+
+  ;; maybe we can do something here once core.async/promise-chan lands in master
+  ;; clojure.core.async.impl.channels.ManyToManyChannel
+  ;; (write-body! [ch ^Response response]
+  ;;   (a/in-deferred out-ch (async/take! ch #(write-body-async! % response out-ch))))
 
   clojure.core.async.impl.channels.ManyToManyChannel
-  (write-body! [ch ^HttpServletResponse response]
-    (let [w (response->output-stream-writer response)]
-      (async/go
+  (write-body! [ch ^Response response]
+    (async/go
+      (let [^ServletOutputStream output-stream (.getOutputStream response)
+            ^HttpOutput output (http-output response)
+            write-token-chan (async/chan)
+            listener (reify WriteListener
+                       (onError [this t]
+                         (prn t))
+                       (onWritePossible [this]
+                         (async/put! write-token-chan ::token)))]
+        (.setWriteListener output-stream listener)
         (loop [state ::connected]
           (let [x (async/<! ch)]
             (if (and x (= state ::connected))
               (recur
                (try
-                 (write-stream! w x)
+                 (when (not (.isReady ^ServletOutputStream output-stream))
+                   (async/<! write-token-chan))
+                 (.write output-stream (.getBytes (str x)))
+                 (when (not (.isReady ^ServletOutputStream output-stream))
+                   (async/<! write-token-chan))
+                 (.flush ^ServletOutputStream output-stream)
                  state
                  (catch Exception e
+                   (.printStackTrace e)
                    ::disconnected)))
               (when (= ::connected state)
-                (.flushBuffer ^HttpServletResponse response))))))))
+                state)))))))
 
   nil
+  (content [x]
+    (ByteBuffer/allocate 0))
   (write-body! [body response]
     nil)
+  (write-body-async! [x ^Response response deferred]
+    (.sendContent (http-output response)
+                  ^ByteBuffer (content x)
+                  ^Callback (a/callback deferred)))
 
   Object
+  (content [x]
+    (write-body! x nil))
   (write-body! [body _]
     (throw (Exception. ^String (format "Unrecognized body: < %s > %s" (type body) body)))))
 
-(defn async-listener
-  [ch]
-  (reify AsyncListener
-    (onError [this e]
-      (async/close! ch))
-    (onTimeout [this e]
-      (async/close! ch))
-    (onComplete [this e]
-      (async/close! ch))))
-
 (defn ^AsyncContext async-context
-  [^HttpServletRequest request]
+  [^Request request]
   (when-not (.isAsyncStarted request)
     (.startAsync request))
   (.getAsyncContext request))
 
 (defn set-body!
-  [^HttpServletResponse response
-   ^HttpServletRequest request
+  [^Response response
+   ^Request request
    body]
   (if (chan? body)
     (let [ctx (doto (async-context request)
                 (.setTimeout 0))]
       (async/take! (set-response-body! response body)
-                   (fn [_] (.complete ctx)))
-      (.addListener ctx (async-listener body)))
+                   (fn [_] (.complete ctx))))
     (do
       (set-response-body! response body)
       (.flushBuffer response))))
 
 (defn set-headers+status!
-  [^HttpServletResponse response headers status]
+  [^Response response headers status]
   (when status
     (set-status! response status))
   (set-headers! response headers))
@@ -223,8 +248,8 @@
 (extend-protocol PResponse
   clojure.core.async.impl.channels.ManyToManyChannel
   (update-response [response-ch
-                    ^HttpServletRequest request
-                    ^HttpServletResponse response]
+                    ^Request request
+                    ^Response response]
     (let [ctx (async-context request)]
       (async/take! response-ch
                    #(do
@@ -234,8 +259,8 @@
 
   clojure.lang.IPersistentMap
   (update-response [{:keys [status headers body]}
-                    ^HttpServletRequest request
-                    ^HttpServletResponse response]
+                    ^Request request
+                    ^Response response]
     (set-headers+status! response headers status)
     (set-body! response request body))
 
@@ -252,8 +277,8 @@
   same return value as the service method in the HttpServlet class."
   [handler]
   (fn [^HttpServlet servlet
-       ^HttpServletRequest request
-       ^HttpServletResponse response]
+       ^Request request
+       ^Response response]
     (let [request-map (-> request
                           (build-request-map)
                           (merge-servlet-keys servlet request response))
