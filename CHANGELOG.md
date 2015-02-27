@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.5
+
+* HttpParser Error Buffer Bleed Vulnerability fix see https://github.com/eclipse/jetty.project/blob/cfca172dd68846b2c7f30a9a6b855f08da7e7946/advisories/2015-02-24-httpparser-error-buffer-bleed.md for details
+
 ## 0.5.4
 
 * HTTP client can now accept a core.async/chan as :body value that will be handled as a  [DeferredContentProvider](http://download.eclipse.org/jetty/9.2.6.v20141205/apidocs/org/eclipse/jetty/client/util/DeferredContentProvider.html)

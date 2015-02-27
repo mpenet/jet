@@ -38,7 +38,7 @@ jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 Add this to your dependencies:
 
 ```clojure
-[cc.qbits/jet "0.5.4"]
+[cc.qbits/jet "0.5.5"]
 ```
 ## Examples
 
