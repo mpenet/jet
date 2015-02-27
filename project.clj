@@ -1,4 +1,4 @@
-(defproject cc.qbits/jet "0.5.5"
+(defproject cc.qbits/jet "0.5.6"
   :description "Jetty9 ring server adapter with WebSocket support"
   :url "https://github.com/mpenet/jet"
   :license {:name "Eclipse Public License"
@@ -6,11 +6,11 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.eclipse.jetty/jetty-server "9.2.9.v20150224"]
-                 [org.eclipse.jetty.websocket/websocket-server "9.2.6.v20141205"]
-                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.6.v20141205"]
-                 [org.eclipse.jetty.websocket/websocket-client "9.2.6.v20141205"]
-                 [org.eclipse.jetty/jetty-client "9.2.6.v20141205"]
-                 [cheshire "5.3.1"]]
+                 [org.eclipse.jetty.websocket/websocket-server "9.2.9.v20150224"]
+                 [org.eclipse.jetty.websocket/websocket-servlet "9.2.9.v20150224"]
+                 [org.eclipse.jetty.websocket/websocket-client "9.2.9.v20150224"]
+                 [org.eclipse.jetty/jetty-client "9.2.9.v20150224"]
+                 [cheshire "5.4.0"]]
   :repositories {"sonatype" {:url "http://oss.sonatype.org/content/repositories/releases"
                              :snapshots false
                              :releases {:checksum :fail :update :always}}

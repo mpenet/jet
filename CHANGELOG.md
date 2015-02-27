@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.6
+
+* update dependencies
+
 ## 0.5.5
 
 * HttpParser Error Buffer Bleed Vulnerability fix see https://github.com/eclipse/jetty.project/blob/cfca172dd68846b2c7f30a9a6b855f08da7e7946/advisories/2015-02-24-httpparser-error-buffer-bleed.md for details
