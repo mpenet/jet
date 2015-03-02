@@ -49,7 +49,8 @@
 (defn build-request-map
   "Create the request map from the HttpServletRequest object."
   [^HttpServletRequest request]
-  {:server-port        (.getServerPort request)
+  {:servlet-request    request
+   :server-port        (.getServerPort request)
    :server-name        (.getServerName request)
    :remote-addr        (.getRemoteAddr request)
    :uri                (.getRequestURI request)
@@ -61,53 +62,43 @@
    :content-length     (get-content-length request)
    :character-encoding (.getCharacterEncoding request)
    :ssl-client-cert    (get-client-cert request)
+   :ctrl               (async/chan)
    :body               (.getInputStream request)})
 
-(defn merge-servlet-keys
-  "Associate servlet-specific keys with the request map for use with legacy
-  systems."
-  [request-map
-   ^HttpServlet servlet
-   ^HttpServletRequest request
-   ^HttpServletResponse response]
-  (merge request-map
-         {:servlet              servlet
-          :servlet-request      request
-          :servlet-response     response
-          :servlet-context      (.getServletContext servlet)
-          :servlet-context-path (.getContextPath request)}))
-
-(defn- set-status!
-  "Update a HttpServletResponse with a status code."
-  [^HttpServletResponse response status]
-  (.setStatus response status))
-
-(defn- set-headers!
+(defn- set-status+headers!
   "Update a HttpServletResponse with a map of headers."
-  [^HttpServletResponse response headers]
+  [{:keys [servlet-response]}
+   request-map
+   status
+   headers]
+  (when status
+      (.setStatus servlet-response status))
   (doseq [[key val-or-vals] headers]
     (if (string? val-or-vals)
-      (.setHeader response key val-or-vals)
+      (.setHeader servlet-response key val-or-vals)
       (doseq [val val-or-vals]
-        (.addHeader response key val))))
+        (.addHeader servlet-response key val))))
   ;; Some headers must be set through specific methods
   (when-let [content-type (get headers "Content-Type")]
-    (.setContentType response content-type))
+    (.setContentType servlet-response content-type))
 
   (when-let [content-type (get headers "Content-Type")]
-    (.setContentType response content-type)))
+    (.setContentType servlet-response content-type)))
 
 (defprotocol PBodyWritable
-  (write-body! [body response]))
+  (write-body! [body response-map request-map]))
 
 (defn set-response-body!
-  [response body]
-  (write-body! body response))
+  [response-map request-map body]
+  (write-body! body response-map request-map))
+
+(defn flush-buffer! [response-map]
+  (-> response-map :servlet-response .flushBuffer))
 
 (defn- response->output-stream-writer
   ^OutputStreamWriter
-  [^HttpServletResponse response]
-  (-> response .getOutputStream OutputStreamWriter.))
+  [response]
+  (-> response :servlet-response .getOutputStream OutputStreamWriter.))
 
 (defprotocol OutputStreamWritable
   (-write-stream! [x stream-writer]))
@@ -123,51 +114,56 @@
     (-write-stream! (str n) sw)))
 
 (defn write-stream!
-  [stream x]
+  [stream x request-map]
   ;; where is flip when you need it!
-  (-write-stream! x stream))
+  (try (-write-stream! x stream)
+       (catch Exception e
+         (let [x (ex-info "Couldnt' write to stream " {:exception e})]
+           (async/put! (:ctrl request-map) [::error x])
+           (throw x)))))
 
 (extend-protocol PBodyWritable
   String
-  (write-body! [s ^HttpServletResponse response]
-    (let [w (response->output-stream-writer response)]
-      (write-stream! w s)))
+  (write-body! [s response-map request-map]
+    (let [w (response->output-stream-writer response-map)]
+      (write-stream! w s request-map)))
 
   clojure.lang.ISeq
-  (write-body! [coll ^HttpServletResponse response]
-    (let [w (response->output-stream-writer response)]
+  (write-body! [coll response-map request-map]
+    (let [w (response->output-stream-writer response-map)]
       (doseq [chunk coll]
-        (write-stream! w chunk))))
+        (write-stream! w chunk request-map))))
 
   clojure.lang.Fn
-  (write-body! [f ^HttpServletResponse response]
-    (f response))
+  (write-body! [f response-map request-map]
+    (f response-map))
 
   InputStream
-  (write-body! [stream ^HttpServletResponse response]
+  (write-body! [stream response-map request-map]
     (with-open [^InputStream b stream]
-      (io/copy b (.getOutputStream response))))
+      (io/copy b (.getOutputStream (:servlet-response response-map)))))
 
   File
-  (write-body! [file ^HttpServletResponse response]
+  (write-body! [file response-map request-map]
     (with-open [stream (FileInputStream. file)]
-      (write-body! stream response)))
+      (write-body! stream response-map request-map)))
 
   clojure.core.async.impl.channels.ManyToManyChannel
-  (write-body! [ch ^HttpServletResponse response]
-    (let [w (response->output-stream-writer response)]
+  (write-body! [ch response-map request-map]
+    (let [w (response->output-stream-writer response-map)
+          servlet-response (:servlet-response response-map)]
       (async/go
         (loop [state ::connected]
           (let [x (async/<! ch)]
             (if (and x (= state ::connected))
               (recur
                (try
-                 (write-stream! w x)
+                 (write-stream! w x request-map)
                  state
                  (catch Exception e
                    ::disconnected)))
               (when (= ::connected state)
-                (.flushBuffer ^HttpServletResponse response))))))))
+                (flush-buffer! response-map))))))))
 
   nil
   (write-body! [body response]
@@ -188,98 +184,68 @@
       (async/close! ch))))
 
 (defn ^AsyncContext async-context
-  [^HttpServletRequest request]
-  (when-not (.isAsyncStarted request)
-    (.startAsync request))
-  (.getAsyncContext request))
+  [{:as request-map
+    :keys [servlet-request]}]
+  (when-not (.isAsyncStarted servlet-request)
+    (.startAsync servlet-request))
+  (.getAsyncContext servlet-request))
 
 (defn set-body!
-  [^HttpServletResponse response
-   ^HttpServletRequest request
+  [response-map
+   request-map
    body]
   (if (chan? body)
-    (let [ctx (doto (async-context request)
+    (let [ctx (doto (async-context request-map)
                 (.setTimeout 0))]
-      (async/take! (set-response-body! response body)
-                   (fn [_] (.complete ctx)))
-      (.addListener ctx (async-listener body)))
+      (.addListener ctx (async-listener body))
+      (async/take! (set-response-body! response-map request-map body)
+                   (fn [_] (.complete ctx))))
     (do
-      (set-response-body! response body)
-      (.flushBuffer response))))
-
-(defn set-headers+status!
-  [^HttpServletResponse response headers status]
-  (when status
-    (set-status! response status))
-  (set-headers! response headers))
+      (set-response-body! response-map request-map body)
+      (flush-buffer! response-map))))
 
 (defn throw-invalid-response!
   [x]
   (throw (ex-info "Invalid response given." {:response x})))
 
 (defprotocol PResponse
-  (update-response [x request response]))
+  (-update-response [x response-map]))
+
+(defn add-servlet-keys
+  [response-map request-map]
+  (assoc response-map :servlet-response
+         (-> request-map :servlet-request .getServletResponse)))
+
+(defn update-response
+  [x request-map]
+  (-update-response x request-map))
 
 (extend-protocol PResponse
   clojure.core.async.impl.channels.ManyToManyChannel
-  (update-response [response-ch
-                    ^HttpServletRequest request
-                    ^HttpServletResponse response]
-    (let [ctx (async-context request)]
+  (-update-response [response-ch
+                     request-map]
+    (let [ctx (async-context request-map)]
       (async/take! response-ch
                    #(do
-                      (update-response % request response)
+                      (try
+                        (-update-response % request-map)
+                        (catch Exception e
+                          (-> request-map :ctrl (async/put! [::error e]))))
                       (when-not (chan? (:body %))
                         (.complete ctx))))))
 
   clojure.lang.IPersistentMap
-  (update-response [{:keys [status headers body]}
-                    ^HttpServletRequest request
-                    ^HttpServletResponse response]
-    (set-headers+status! response headers status)
-    (set-body! response request body))
+  (-update-response [response-map request-map]
+    (let [{:keys [status headers body]
+           :as response-map}
+          (add-servlet-keys response-map request-map)]
+      (set-status+headers! response-map request-map status headers)
+      (set-body! response-map request-map body)))
 
   Object
-  (update-response [x _ _]
+  (-update-response [x _ _ _]
     (throw-invalid-response! x))
 
   nil
-  (update-response [x _ _]
+  (-update-response [x _ _ _]
     (throw-invalid-response! x)))
-
-(defn make-service-method
-  "Turns a handler into a function that takes the same arguments and has the
-  same return value as the service method in the HttpServlet class."
-  [handler]
-  (fn [^HttpServlet servlet
-       ^HttpServletRequest request
-       ^HttpServletResponse response]
-    (let [request-map (-> request
-                          (build-request-map)
-                          (merge-servlet-keys servlet request response))
-          response' (handler request-map)]
-      (update-response response' request response))))
-
-(defn servlet
-  "Create a servlet from a Ring handler."
-  [handler]
-  (proxy [HttpServlet] []
-    (service [request response]
-      ((make-service-method handler)
-       this request response))))
-
-(defmacro defservice
-  "Defines a service method with an optional prefix suitable for being used by
-  genclass to compile a HttpServlet class.
-
-  For example:
-
-  (defservice my-handler)
-    (defservice \"my-prefix-\" my-handler)"
-  ([handler]
-     `(defservice "-" ~handler))
-  ([prefix handler]
-     `(defn ~(symbol (str prefix "service"))
-        [servlet# request# response#]
-        ((make-service-method ~handler)
-         servlet# request# response#))))

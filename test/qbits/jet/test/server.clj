@@ -33,7 +33,7 @@
 
 (defn echo-handler [request]
   {:status 200
-   :headers {"request-map" (str (dissoc request :body))}
+   :headers {"request-map" (str (dissoc request :body :ctrl :servlet-request))}
    :body (:body request)})
 
 (defn async-handler [request]
@@ -74,7 +74,9 @@
 
 (defn request-map->edn
   [response]
-  (-> response (get-in [:headers "request-map"]) read-string))
+  (-> response
+      (get-in [:headers "request-map"])
+      read-string))
 
 (defmacro with-server [options & body]
   `(let [server# (run-jetty (-> (assoc ~options :join? false)

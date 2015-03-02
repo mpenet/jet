@@ -69,7 +69,7 @@ Derived from ring.adapter.jetty"
       (let [request-map (servlet/build-request-map request)
             response' (handler request-map)]
         (when response'
-          (servlet/update-response response' request response)
+          (servlet/update-response response' request-map)
           (.setHandled base-request true))))))
 
 (defn- http-config

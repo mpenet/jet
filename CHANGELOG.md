@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.7
+
+* server async error handling improvements:
+  When the server is used in async mode (either for chunked body
+  and/or async response) you can now reach an async channel in :ctrl
+  in the request-map to handle errors
+
 ## 0.5.6
 
 * update dependencies
