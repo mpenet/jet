@@ -67,7 +67,7 @@
 
 (defn- set-status+headers!
   "Update a HttpServletResponse with a map of headers."
-  [^Response servlet-response
+  [^HttpServletResponse servlet-response
    request-map
    status
    headers]
