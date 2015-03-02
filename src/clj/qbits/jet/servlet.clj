@@ -116,12 +116,12 @@
 
 (defn write-stream!
   [stream x request-map]
-  ;; where is flip when you need it!
-  (try (-write-stream! x stream)
-       (catch Exception e
-         (let [x (ex-info "Couldnt' write to stream " {:exception e})]
-           (async/put! (:ctrl request-map) [::error x])
-           (throw x)))))
+  (try
+    (-write-stream! x stream)
+    (catch Exception e
+      (let [x (ex-info "Couldnt' write to stream " {:exception e})]
+        (async/put! (:ctrl request-map) [::error x])
+        (throw x)))))
 
 (extend-protocol PBodyWritable
   String
