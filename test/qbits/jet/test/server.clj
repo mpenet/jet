@@ -17,7 +17,7 @@
 (def base-url (str "http://localhost:" port))
 (def client (http/client))
 
-(def num-chunk 2048)
+(def num-chunk 3)
 (def chunk-interval-ms 5)
 
 (defn hello-world [request]

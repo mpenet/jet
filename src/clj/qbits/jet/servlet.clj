@@ -13,9 +13,9 @@
    (javax.servlet
     AsyncContext
     AsyncListener)
+   (org.eclipse.jetty.server Request Response)
    (javax.servlet.http
     HttpServlet
-    HttpServletRequest
     HttpServletResponse)))
 
 (defn chan?
@@ -24,7 +24,7 @@
 
 (defn- get-headers
   "Creates a name/value map of all the request headers."
-  [^HttpServletRequest request]
+  [^Request request]
   (reduce
    (fn [headers ^String name]
      (assoc headers
@@ -37,18 +37,18 @@
 
 (defn- get-content-length
   "Returns the content length, or nil if there is no content."
-  [^HttpServletRequest request]
+  [^Request request]
   (let [length (.getContentLength request)]
     (if (>= length 0) length)))
 
 (defn- get-client-cert
   "Returns the SSL client certificate of the request, if one exists."
-  [^HttpServletRequest request]
+  [^Request request]
   (first (.getAttribute request "javax.servlet.request.X509Certificate")))
 
 (defn build-request-map
   "Create the request map from the HttpServletRequest object."
-  [^HttpServletRequest request]
+  [^Request request]
   {:servlet-request    request
    :server-port        (.getServerPort request)
    :server-name        (.getServerName request)
@@ -67,7 +67,7 @@
 
 (defn- set-status+headers!
   "Update a HttpServletResponse with a map of headers."
-  [{:keys [servlet-response]}
+  [^Response servlet-response
    request-map
    status
    headers]
@@ -86,19 +86,20 @@
     (.setContentType servlet-response content-type)))
 
 (defprotocol PBodyWritable
-  (write-body! [body response-map request-map]))
+  (write-body! [body servlet-response request-map]))
 
 (defn set-response-body!
-  [response-map request-map body]
-  (write-body! body response-map request-map))
+  [servlet-response request-map body]
+  (write-body! body servlet-response request-map))
 
-(defn flush-buffer! [response-map]
-  (-> response-map :servlet-response .flushBuffer))
+(defn flush-buffer!
+  [^Response servlet-response]
+  (.flushBuffer servlet-response))
 
 (defn- response->output-stream-writer
   ^OutputStreamWriter
-  [response]
-  (-> response :servlet-response .getOutputStream OutputStreamWriter.))
+  [^Response servlet-response]
+  (-> servlet-response .getOutputStream OutputStreamWriter.))
 
 (defprotocol OutputStreamWritable
   (-write-stream! [x stream-writer]))
@@ -124,34 +125,33 @@
 
 (extend-protocol PBodyWritable
   String
-  (write-body! [s response-map request-map]
-    (let [w (response->output-stream-writer response-map)]
+  (write-body! [s servlet-response request-map]
+    (let [w (response->output-stream-writer servlet-response)]
       (write-stream! w s request-map)))
 
   clojure.lang.ISeq
-  (write-body! [coll response-map request-map]
-    (let [w (response->output-stream-writer response-map)]
+  (write-body! [coll servlet-response request-map]
+    (let [w (response->output-stream-writer servlet-response)]
       (doseq [chunk coll]
         (write-stream! w chunk request-map))))
 
   clojure.lang.Fn
-  (write-body! [f response-map request-map]
-    (f response-map))
+  (write-body! [f servlet-response request-map]
+    (f servlet-response))
 
   InputStream
-  (write-body! [stream response-map request-map]
+  (write-body! [stream ^Response servlet-response request-map]
     (with-open [^InputStream b stream]
-      (io/copy b (.getOutputStream (:servlet-response response-map)))))
+      (io/copy b (.getOutputStream servlet-response))))
 
   File
-  (write-body! [file response-map request-map]
+  (write-body! [file servlet-response request-map]
     (with-open [stream (FileInputStream. file)]
-      (write-body! stream response-map request-map)))
+      (write-body! stream servlet-response request-map)))
 
   clojure.core.async.impl.channels.ManyToManyChannel
-  (write-body! [ch response-map request-map]
-    (let [w (response->output-stream-writer response-map)
-          servlet-response (:servlet-response response-map)]
+  (write-body! [ch servlet-response request-map]
+    (let [w (response->output-stream-writer servlet-response)]
       (async/go
         (loop [state ::connected]
           (let [x (async/<! ch)]
@@ -163,7 +163,7 @@
                  (catch Exception e
                    ::disconnected)))
               (when (= ::connected state)
-                (flush-buffer! response-map))))))))
+                (flush-buffer! servlet-response))))))))
 
   nil
   (write-body! [body response]
@@ -185,36 +185,31 @@
 
 (defn ^AsyncContext async-context
   [{:as request-map
-    :keys [servlet-request]}]
+    :keys [^Request servlet-request]}]
   (when-not (.isAsyncStarted servlet-request)
     (.startAsync servlet-request))
   (.getAsyncContext servlet-request))
 
 (defn set-body!
-  [response-map
+  [servlet-response
    request-map
    body]
   (if (chan? body)
     (let [ctx (doto (async-context request-map)
                 (.setTimeout 0))]
       (.addListener ctx (async-listener body))
-      (async/take! (set-response-body! response-map request-map body)
+      (async/take! (set-response-body! servlet-response request-map body)
                    (fn [_] (.complete ctx))))
     (do
-      (set-response-body! response-map request-map body)
-      (flush-buffer! response-map))))
+      (set-response-body! servlet-response request-map body)
+      (flush-buffer! servlet-response))))
 
 (defn throw-invalid-response!
   [x]
   (throw (ex-info "Invalid response given." {:response x})))
 
 (defprotocol PResponse
-  (-update-response [x response-map]))
-
-(defn add-servlet-keys
-  [response-map request-map]
-  (assoc response-map :servlet-response
-         (-> request-map :servlet-request .getServletResponse)))
+  (-update-response [x servlet-response]))
 
 (defn update-response
   [x request-map]
@@ -236,11 +231,11 @@
 
   clojure.lang.IPersistentMap
   (-update-response [response-map request-map]
-    (let [{:keys [status headers body]
-           :as response-map}
-          (add-servlet-keys response-map request-map)]
-      (set-status+headers! response-map request-map status headers)
-      (set-body! response-map request-map body)))
+    (let [{:keys [status headers body]} response-map
+          ^Request servlet-request (:servlet-request request-map)
+          servlet-response  (.getServletResponse servlet-request)]
+      (set-status+headers! servlet-response request-map status headers)
+      (set-body! servlet-response request-map body)))
 
   Object
   (-update-response [x _ _ _]
