@@ -191,14 +191,9 @@ supplied options:
     * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`
 "
   [{:as options
-    :keys [websocket-handler ring-handler
-           max-threads min-threads configurator join?]
-    :or {max-threads 50
-         min-threads 8
-         join? true}}]
+    :keys [websocket-handler ring-handler configurator join?]
+    :or {join? true}}]
   (let [^Server s (create-server options)
-        ^QueuedThreadPool p (QueuedThreadPool. (int max-threads)
-                                               (int min-threads))
         hs (HandlerList.)]
 
     (when websocket-handler
