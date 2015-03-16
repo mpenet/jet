@@ -120,43 +120,6 @@ Derived from ring.adapter.jetty"
       nil)
     context))
 
-(defn- create-server
-  "Construct a Jetty Server instance."
-  [{:as options
-    :keys [port max-threads min-threads daemon? max-idle-time host ssl? ssl-port]
-    :or {port 80
-         max-threads 50
-         min-threads 8
-         daemon? false
-         max-idle-time 200000
-         ssl? false}}]
-  (let [pool (doto (QueuedThreadPool. (int max-threads)
-                                      (int min-threads))
-               (.setDaemon daemon?))
-        server (doto (Server. pool)
-                 (.addBean (ScheduledExecutorScheduler.)))
-
-        http-configuration (http-config options)
-
-        ^"[Lorg.eclipse.jetty.server.ConnectionFactory;" connection-factories
-        (into-array ConnectionFactory [(HttpConnectionFactory. http-configuration)])
-
-        connectors (-> []
-                       (conj (doto (ServerConnector. ^Server server connection-factories)
-                               (.setPort port)
-                               (.setHost host)
-                               (.setIdleTimeout max-idle-time)))
-                       (cond-> (or ssl? ssl-port)
-                               (conj (doto (ServerConnector. ^Server server
-                                                             (ssl-context-factory options)
-                                                             connection-factories)
-                                  (.setPort ssl-port)
-                                  (.setHost host)
-                                  (.setIdleTimeout max-idle-time))))
-                       (into-array))]
-    (.setConnectors server connectors)
-    server))
-
 (defn ^Server run-jetty
   "Start a Jetty webserver to serve the given handler according to the
 supplied options:
@@ -188,24 +151,48 @@ supplied options:
 
     * `:in`: core.async chan that receives data sent by the client
     * `:out`: core async chan you can use to send data to client
-    * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`
-"
+    * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`"
   [{:as options
-    :keys [websocket-handler ring-handler configurator join?]
-    :or {join? true}}]
-  (let [^Server s (create-server options)]
+    :keys [websocket-handler ring-handler host port max-threads min-threads
+           daemon? max-idle-time ssl? ssl-port configurator join?]
+    :or {port 80
+         max-threads 50
+         min-threads 8
+         daemon? false
+         max-idle-time 200000
+         ssl? false
+         join? true}}]
+  (let [pool (doto (QueuedThreadPool. (int max-threads)
+                                      (int min-threads))
+               (.setDaemon daemon?))
+        server (doto (Server. pool)
+                 (.addBean (ScheduledExecutorScheduler.)))
+        ^"[Lorg.eclipse.jetty.server.ConnectionFactory;" connection-factories
+        (into-array ConnectionFactory [(HttpConnectionFactory. (http-config options))])
+        connectors (-> []
+                       (conj (doto (ServerConnector. ^Server server connection-factories)
+                               (.setPort port)
+                               (.setHost host)
+                               (.setIdleTimeout max-idle-time)))
+                       (cond-> (or ssl? ssl-port)
+                         (conj (doto (ServerConnector. ^Server server
+                                                       (ssl-context-factory options)
+                                                       connection-factories)
+                                 (.setPort ssl-port)
+                                 (.setHost host)
+                                 (.setIdleTimeout max-idle-time))))
+                       (into-array))]
+    (.setConnectors server connectors)
     (when (or websocket-handler ring-handler)
       (let [hs (HandlerList.)]
         (when websocket-handler
           (.addHandler hs (make-ws-handler websocket-handler options)))
-
         (when ring-handler
           (.addHandler hs (make-handler ring-handler options)))
-
-        (.setHandler s hs)))
+        (.setHandler server hs)))
     (when-let [c configurator]
-      (c s))
-    (.start s)
+      (c server))
+    (.start server)
     (when join?
-      (.join s))
-    s))
+      (.join server))
+    server))
