@@ -193,17 +193,16 @@ supplied options:
   [{:as options
     :keys [websocket-handler ring-handler configurator join?]
     :or {join? true}}]
-  (let [^Server s (create-server options)
-        hs (HandlerList.)]
+  (let [^Server s (create-server options)]
+    (when (or websocket-handler ring-handler)
+      (let [hs (HandlerList.)]
+        (when websocket-handler
+          (.addHandler hs (make-ws-handler websocket-handler options)))
 
-    (when websocket-handler
-      (.addHandler hs (make-ws-handler websocket-handler options)))
+        (when ring-handler
+          (.addHandler hs (make-handler ring-handler options)))
 
-    (when ring-handler
-      (.addHandler hs (make-handler ring-handler options)))
-
-    (.setHandler s hs)
-
+        (.setHandler s hs)))
     (when-let [c configurator]
       (c s))
     (.start s)
