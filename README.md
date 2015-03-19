@@ -1,4 +1,6 @@
 # jet
+
+[![Join the chat at https://gitter.im/mpenet/jet](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/mpenet/jet?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://secure.travis-ci.org/mpenet/jet.png?branch=master)](http://travis-ci.org/mpenet/jet)
 
 <img src="http://i.imgur.com/gs2v6d8.gif" title="Hosted by imgur.com" align="right"/>
