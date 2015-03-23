@@ -305,7 +305,7 @@
                (name content-type)))
 
     (doseq [[k v] query-string]
-      (.param request (name k) v))
+      (.param request (name k) (str v)))
 
     (.onResponseContent request
                         (reify Response$ContentListener
