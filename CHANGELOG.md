@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.8
+
+*  call toString on query string values
+
 ## 0.5.7
 
 * server async error handling improvements:
