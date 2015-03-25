@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.9
+
+* use jetty-* 9.2.10 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
+
 ## 0.5.8
 
 *  call toString on query string values
