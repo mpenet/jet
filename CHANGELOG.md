@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.10
+
+* allow to configure httpconnection factory input buffer size
+
 ## 0.5.9
 
 * use jetty-* 9.2.10 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
