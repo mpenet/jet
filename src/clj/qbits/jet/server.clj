@@ -143,6 +143,7 @@ supplied options:
 * `:ws-max-idle-time`  - the maximum idle time in milliseconds for a websocket connection (default 500000)
 * `:client-auth` - SSL client certificate authenticate, may be set to :need, :want or :none (defaults to :none)
 * `:output-buffer-size` - (default 32768)
+* `:input-buffer-size` - (default 8192)
 * `:request-header-size` - (default 8192)
 * `:response-header-size` - (default 8192)
 * `:send-server-version?` - (default true)
@@ -155,21 +156,25 @@ supplied options:
     * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`"
   [{:as options
     :keys [websocket-handler ring-handler host port max-threads min-threads
-           daemon? max-idle-time ssl? ssl-port configurator join?]
+           input-buffer-size max-idle-time ssl-port configurator
+           daemon? ssl? join?]
     :or {port 80
          max-threads 50
          min-threads 8
          daemon? false
          max-idle-time 200000
          ssl? false
-         join? true}}]
+         join? true
+         input-buffer-size 8192}}]
   (let [pool (doto (QueuedThreadPool. (int max-threads)
                                       (int min-threads))
                (.setDaemon daemon?))
         server (doto (Server. pool)
                  (.addBean (ScheduledExecutorScheduler.)))
+        http-connection-factory (doto (HttpConnectionFactory. (http-config options))
+                                  (.setInputBufferSize input-buffer-size))
         ^"[Lorg.eclipse.jetty.server.ConnectionFactory;" connection-factories
-        (into-array ConnectionFactory [(HttpConnectionFactory. (http-config options))])
+        (into-array ConnectionFactory [http-connection-factory])
         connectors (-> []
                        (conj (doto (ServerConnector. ^Server server connection-factories)
                                (.setPort port)
