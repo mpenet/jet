@@ -128,6 +128,7 @@ supplied options:
 * `:port` - the port to listen on (defaults to 80)
 * `:host` - the hostname to listen on
 * `:join?` - blocks the thread until server ends (defaults to true)
+* `:configurator` - fn that will be passed the server instance before server.start()
 * `:daemon?` - use daemon threads (defaults to false)
 * `:ssl?` - allow connections over HTTPS
 * `:ssl-port` - the SSL port to listen on (defaults to 443, implies :ssl?)
@@ -190,8 +191,8 @@ supplied options:
         (when ring-handler
           (.addHandler hs (make-handler ring-handler options)))
         (.setHandler server hs)))
-    (when-let [c configurator]
-      (c server))
+    (when configurator
+      (configurator server))
     (.start server)
     (when join?
       (.join server))
