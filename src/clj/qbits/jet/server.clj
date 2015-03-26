@@ -172,7 +172,7 @@ supplied options:
         server (doto (Server. pool)
                  (.addBean (ScheduledExecutorScheduler.)))
         http-connection-factory (doto (HttpConnectionFactory. (http-config options))
-                                  (.setInputBufferSize input-buffer-size))
+                                  (.setInputBufferSize (int input-buffer-size)))
         ^"[Lorg.eclipse.jetty.server.ConnectionFactory;" connection-factories
         (into-array ConnectionFactory [http-connection-factory])
         connectors (-> []
