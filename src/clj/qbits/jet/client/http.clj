@@ -262,7 +262,8 @@
            fold-chunked-response?]
     :or {method :get
          as :string
-         follow-redirects? true}
+         follow-redirects? true
+         fold-chunked-response? true}
     :as request-map}]
   (let [ch (async/chan 1)
         body-ch (async/chan 1

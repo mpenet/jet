@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+* make fold-chunked-response? default to true, as 99% of the time you want it on.
+
 ## 0.5.10
 
 * allow to configure httpconnection factory input buffer size

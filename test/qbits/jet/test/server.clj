@@ -182,7 +182,7 @@
   (testing "chunked response"
     (with-server {:ring-handler chunked-handler
                   :port port}
-      (let [response (async/<!! (http/get client base-url))]
+      (let [response (async/<!! (http/get client base-url  {:fold-chunked-response? false}))]
         (is (= (:status response) 201))
         (dotimes [i num-chunk]
           (is (= (-> response :body async/<!!) (str i))))
@@ -197,7 +197,7 @@
   (testing "async+chunked-body"
     (with-server {:ring-handler async-handler+chunked-body
                   :port port}
-      (let [response (async/<!! (http/get client base-url))
+      (let [response (async/<!! (http/get client base-url {:fold-chunked-response? false}))
             body (:body response)]
         (is (= (:status response) 202))
         (dotimes [i num-chunk]
