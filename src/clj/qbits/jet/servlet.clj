@@ -184,9 +184,12 @@
 
 (defn ^AsyncContext async-context
   [{:as request-map
-    :keys [^Request servlet-request]}]
+    :keys [^Request servlet-request]}
+   response-ch]
   (when-not (.isAsyncStarted servlet-request)
-    (.startAsync servlet-request))
+    (doto (.startAsync servlet-request)
+      (.addListener (async-listener response-ch))
+      (.setTimeout 0))) ; Expect timing out to be handled by application code
   (.getAsyncContext servlet-request))
 
 (defn set-body!
@@ -194,9 +197,7 @@
    request-map
    body]
   (if (chan? body)
-    (let [ctx (doto (async-context request-map)
-                (.setTimeout 0))]
-      (.addListener ctx (async-listener body))
+    (let [ctx (async-context request-map body)]
       (async/take! (set-response-body! servlet-response request-map body)
                    (fn [_] (.complete ctx))))
     (do
@@ -218,7 +219,7 @@
   clojure.core.async.impl.channels.ManyToManyChannel
   (-update-response [response-ch
                      request-map]
-    (let [ctx (async-context request-map)]
+    (let [ctx (async-context request-map response-ch)]
       (async/take! response-ch
                    #(do
                       (try
