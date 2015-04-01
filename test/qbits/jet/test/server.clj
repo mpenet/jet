@@ -25,6 +25,10 @@
    :headers {"Content-Type" "text/plain"}
    :body    "Hello World"})
 
+(defn nil-body [request]
+  {:status  200
+   :body    nil})
+
 (defn content-type-handler [content-type]
   (constantly
    {:status  200
@@ -96,6 +100,12 @@
         (is (.startsWith (get-in response [:headers "content-type"])
                          "text/plain"))
         (is (= (async/<!! (:body response)) "Hello World")))))
+
+  (testing "HTTP server"
+    (with-server {:port port :ring-handler nil-body}
+      (let [response (async/<!! (http/get client base-url))]
+        (is (= (:status response) 200))
+        (is (= (async/<!! (:body response)) "")))))
 
   (testing "HTTPS server"
     (with-server {:ring-handler hello-world

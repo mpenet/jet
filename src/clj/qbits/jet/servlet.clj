@@ -166,8 +166,7 @@
                 (flush-buffer! servlet-response))))))))
 
   nil
-  (write-body! [body response]
-    nil)
+  (write-body! [body servlet-response request-map])
 
   Object
   (write-body! [body _]

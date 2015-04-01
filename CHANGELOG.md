@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1
+
+* http server: fix response body with nil return value causing exception
+
 ## 0.6.0
 
 * make fold-chunked-response? default to true, as 99% of the time you want it on.
