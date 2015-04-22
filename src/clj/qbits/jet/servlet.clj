@@ -172,6 +172,16 @@
   (write-body! [body _]
     (throw (Exception. ^String (format "Unrecognized body: < %s > %s" (type body) body)))))
 
+(defn ctrl-listener
+  [ctrl]
+  (reify AsyncListener
+    (onError [this e]
+      (async/put! ctrl [:error e]))
+    (onTimeout [this e]
+      (async/put! ctrl [:timeout e]))
+    (onComplete [this e]
+      (async/close! ctrl))))
+
 (defn async-listener
   [ch]
   (reify AsyncListener
@@ -184,13 +194,16 @@
 
 (defn ^AsyncContext async-context
   [{:as request-map
-    :keys [^Request servlet-request]}
-   response-ch]
+    :keys [^Request servlet-request
+           ctrl]}
+   ch]
   (when-not (.isAsyncStarted servlet-request)
     (doto (.startAsync servlet-request)
-      (.addListener (async-listener response-ch))
-      (.setTimeout 0))) ; Expect timing out to be handled by application code
-  (.getAsyncContext servlet-request))
+      ;; Expect timing out to be handled by application code
+      (.setTimeout 0)
+      (.addListener (ctrl-listener ctrl))))
+  (doto (.getAsyncContext servlet-request)
+    (.addListener (async-listener ch))))
 
 (defn set-body!
   [servlet-response
