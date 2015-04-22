@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.2
+
+* Disable response timeout by default when using async body response
+* Send error/timeout signals in :ctrl channel in server async response mode
+
 ## 0.6.1
 
 * http server: fix response body with nil return value causing exception

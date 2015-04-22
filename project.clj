@@ -1,9 +1,9 @@
-(defproject cc.qbits/jet "0.6.1"
+(defproject cc.qbits/jet "0.6.2"
   :description "Jetty9 ring server adapter with WebSocket support"
   :url "https://github.com/mpenet/jet"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.6.0"]
+  :dependencies [[org.clojure/clojure "1.7.0-beta1"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.eclipse.jetty/jetty-server "9.2.10.v20150310"]
                  [org.eclipse.jetty.websocket/websocket-server "9.2.10.v20150310"]
