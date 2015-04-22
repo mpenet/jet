@@ -176,9 +176,9 @@
   [ctrl]
   (reify AsyncListener
     (onError [this e]
-      (async/put! ctrl [:error e]))
+      (async/put! ctrl [::error e]))
     (onTimeout [this e]
-      (async/put! ctrl [:timeout e]))
+      (async/put! ctrl [::timeout e]))
     (onComplete [this e]
       (async/close! ctrl))))
 
