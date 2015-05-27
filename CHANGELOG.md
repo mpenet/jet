@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.3
+
+* Fix body writing for Object
+
 ## 0.6.2
 
 * Disable response timeout by default when using async body response
