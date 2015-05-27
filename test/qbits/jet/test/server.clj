@@ -251,11 +251,11 @@
 
 
   (testing "HTTP request :as"
-    (is (= "zuck" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json})
-                      async/<!! :body async/<!! :username)))
+    (is (= "4" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json})
+                      async/<!! :body async/<!! :id)))
 
-    (is (= "zuck" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json-str})
-                      async/<!! :body async/<!! (get "username")))))
+    (is (= "4" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json-str})
+                      async/<!! :body async/<!! (get "id")))))
 
   (testing "cookies"
     (with-server {:ring-handler echo-handler :port port}
