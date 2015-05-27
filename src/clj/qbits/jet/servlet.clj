@@ -169,7 +169,7 @@
   (write-body! [body servlet-response request-map])
 
   Object
-  (write-body! [body _]
+  (write-body! [body _ _]
     (throw (Exception. ^String (format "Unrecognized body: < %s > %s" (type body) body)))))
 
 (defn ctrl-listener
