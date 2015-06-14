@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.4
+
+* use jetty-* 9.2.11 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.6.3
 
 * Fix body writing for Object
