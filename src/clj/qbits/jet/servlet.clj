@@ -9,7 +9,7 @@
     File
     InputStream
     FileInputStream
-    OutputStreamWriter)
+    OutputStream)
    (javax.servlet
     AsyncContext
     AsyncListener)
@@ -96,23 +96,32 @@
   [^Response servlet-response]
   (.flushBuffer servlet-response))
 
-(defn- response->output-stream-writer
-  ^OutputStreamWriter
+(defn- response->output-stream
+  ^OutputStream
   [^Response servlet-response]
-  (-> servlet-response .getOutputStream OutputStreamWriter.))
+  (-> servlet-response .getOutputStream))
 
 (defprotocol OutputStreamWritable
   (-write-stream! [x stream-writer]))
 
 (extend-protocol OutputStreamWritable
+  (Class/forName "[B") ; Byte array
+  (-write-stream! [bytes ^OutputStream sw]
+    (.write sw bytes)
+    (.flush sw))
+
   String
-  (-write-stream! [s ^OutputStreamWriter sw]
-    (.write sw s)
+  (-write-stream! [s ^OutputStream sw]
+    (.write sw (.getBytes s))
     (.flush sw))
 
   Number
   (-write-stream! [n sw]
-    (-write-stream! (str n) sw)))
+    (-write-stream! (str n) sw))
+
+  InputStream
+  (-write-stream! [input-stream ^OutputStream sw]
+    (io/copy input-stream sw)))
 
 (defn write-stream!
   [stream x request-map]
@@ -124,25 +133,28 @@
         (throw x)))))
 
 (extend-protocol PBodyWritable
+  (Class/forName "[B") ; Byte array
+  (write-body! [bytes servlet-response request-map]
+    (write-stream! (response->output-stream servlet-response) bytes request-map))
+
   String
   (write-body! [s servlet-response request-map]
-    (let [w (response->output-stream-writer servlet-response)]
+    (let [w (response->output-stream servlet-response)]
       (write-stream! w s request-map)))
 
   clojure.lang.ISeq
   (write-body! [coll servlet-response request-map]
-    (let [w (response->output-stream-writer servlet-response)]
+    (let [w (response->output-stream servlet-response)]
       (doseq [chunk coll]
         (write-stream! w chunk request-map))))
+
+  InputStream
+  (write-body! [stream ^Response servlet-response request-map]
+    (write-stream! (response->output-stream servlet-response) stream request-map))
 
   clojure.lang.Fn
   (write-body! [f servlet-response request-map]
     (f servlet-response))
-
-  InputStream
-  (write-body! [stream ^Response servlet-response request-map]
-    (with-open [^InputStream b stream]
-      (io/copy b (.getOutputStream servlet-response))))
 
   File
   (write-body! [file servlet-response request-map]
@@ -151,7 +163,7 @@
 
   clojure.core.async.impl.channels.ManyToManyChannel
   (write-body! [ch servlet-response request-map]
-    (let [w (response->output-stream-writer servlet-response)]
+    (let [w (response->output-stream servlet-response)]
       (async/go
         (loop [state ::connected]
           (let [x (async/<! ch)]
