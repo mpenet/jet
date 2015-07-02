@@ -8,6 +8,8 @@
 
 * use jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
 
+!! **Breaking** jetty 9.3.0 requires java8
+
 ## 0.6.4
 
 * use jetty-* 9.2.11 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
