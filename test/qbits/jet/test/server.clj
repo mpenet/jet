@@ -40,6 +40,11 @@
    :headers {"request-map" (str (dissoc request :body :ctrl :servlet-request))}
    :body (:body request)})
 
+(defn json-handler [content-type]
+  {:status  200
+   :headers {"Content-Type" "application/json"}
+   :body    "{\"foo\": 1}"})
+
 (defn async-handler [request]
   (let [ch (async/chan)]
     (async/go
@@ -250,12 +255,12 @@
         (is (= :trace (:request-method request-map))))))
 
 
-  (testing "HTTP request :as"
-    (is (= "4" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json})
-                      async/<!! :body async/<!! :id)))
-
-    (is (= "4" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json-str})
-                      async/<!! :body async/<!! (get "id")))))
+  (testing "HTTP request :as :json/:json-str"
+    (with-server {:port port :ring-handler json-handler}
+      (is (= 1 (-> (http/get client base-url {:as :json})
+                   async/<!! :body async/<!! :foo)))
+      (is (= 1 (-> (http/get client base-url {:as :json-str})
+                   async/<!! :body async/<!! (get "foo"))))))
 
   (testing "cookies"
     (with-server {:ring-handler echo-handler :port port}

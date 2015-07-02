@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.5
+
+* Allow more options for streaming, see https://github.com/mpenet/jet/pull/21
+
+* fix tests
+
+* use jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.6.4
 
 * use jetty-* 9.2.11 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)

@@ -263,9 +263,9 @@
       (set-body! servlet-response request-map body)))
 
   Object
-  (-update-response [x _ _ _]
+  (-update-response [x _]
     (throw-invalid-response! x))
 
   nil
-  (-update-response [x _ _ _]
+  (-update-response [x _]
     (throw-invalid-response! x)))
