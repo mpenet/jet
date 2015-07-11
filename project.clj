@@ -1,16 +1,17 @@
-(defproject cc.qbits/jet "0.6.5"
+(def jetty-version "9.3.0.v20150612")
+(defproject cc.qbits/jet "0.6.6"
   :description "Jetty9 ring server adapter with WebSocket support"
   :url "https://github.com/mpenet/jet"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.7.0-beta1"]
+  :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
-                 [org.eclipse.jetty/jetty-server "9.3.0.v20150612"]
-                 [org.eclipse.jetty.websocket/websocket-server "9.3.0.v20150612"]
-                 [org.eclipse.jetty.websocket/websocket-servlet "9.3.0.v20150612"]
-                 [org.eclipse.jetty.websocket/websocket-client "9.3.0.v20150612"]
-                 [org.eclipse.jetty/jetty-client "9.3.0.v20150612"]
-                 [cheshire "5.4.0"]]
+                 [org.eclipse.jetty/jetty-server ~jetty-version]
+                 [org.eclipse.jetty.websocket/websocket-server ~jetty-version]
+                 [org.eclipse.jetty.websocket/websocket-servlet ~jetty-version]
+                 [org.eclipse.jetty.websocket/websocket-client ~jetty-version]
+                 [org.eclipse.jetty/jetty-client ~jetty-version]
+                 [cheshire "5.5.0"]]
   :repositories {"sonatype" {:url "http://oss.sonatype.org/content/repositories/releases"
                              :snapshots false
                              :releases {:checksum :fail :update :always}}
@@ -19,7 +20,6 @@
                                        :releases {:checksum :fail :update :always}}}
   :profiles {:1.5 {:dependencies [[org.clojure/clojure "1.5.0"]]}
              :1.6 {:dependencies [[org.clojure/clojure "1.6.0"]]}
-             :1.7 {:dependencies [[org.clojure/clojure "1.7.0-alpha4"]]}
              :master {:dependencies [[org.clojure/clojure "1.7.0-master-SNAPSHOT"]]}
              :dev  {:dependencies [[ring/ring-core "1.3.0"
                                      :exclusions [javax.servlet/servlet-api]]

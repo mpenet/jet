@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.6
+
+* Avoid triggering init of logging at compile time see #22
+
+* Kill reflection introduced in 0.6.5
+
+* Bump clojure dependency to 1.7.0
+
 ## 0.6.5
 
 * Allow more options for streaming, see https://github.com/mpenet/jet/pull/21
