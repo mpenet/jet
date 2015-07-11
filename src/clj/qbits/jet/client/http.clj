@@ -41,6 +41,8 @@
 
 (def ^:const array-class (class (clojure.core/byte-array 0)))
 (def default-buffer-size (* 1024 1024 4))
+(def default-insecure-ssl-context-factory
+  (delay (ssl/insecure-ssl-context-factory)))
 
 (defn ^:no-doc ^array-class
   byte-buffer->bytes
@@ -194,7 +196,7 @@
           follow-redirects? true
           tcp-no-delay? true
           strict-event-ordering? false
-          ssl-context-factory ssl/insecure-ssl-context-factory
+          ssl-context-factory @default-insecure-ssl-context-factory
           request-buffer-size default-buffer-size
           response-buffer-size default-buffer-size}
      :as r}]
