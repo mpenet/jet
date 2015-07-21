@@ -15,6 +15,9 @@ Derived from ring.adapter.jetty"
     HttpConnectionFactory
     SslConnectionFactory
     ConnectionFactory)
+   (org.eclipse.jetty.http2.server
+    HTTP2ServerConnectionFactory
+    HTTP2CServerConnectionFactory)
    (org.eclipse.jetty.server.handler
     HandlerCollection
     AbstractHandler
@@ -157,7 +160,7 @@ supplied options:
   [{:as options
     :keys [websocket-handler ring-handler host port max-threads min-threads
            input-buffer-size max-idle-time ssl-port configurator
-           daemon? ssl? join?]
+           daemon? ssl? join? http2? http2c?]
     :or {port 80
          max-threads 50
          min-threads 8
@@ -171,10 +174,15 @@ supplied options:
                (.setDaemon daemon?))
         server (doto (Server. pool)
                  (.addBean (ScheduledExecutorScheduler.)))
-        http-connection-factory (doto (HttpConnectionFactory. (http-config options))
+        http-conf (http-config options)
+
+        http-connection-factory (doto (HttpConnectionFactory. http-conf)
                                   (.setInputBufferSize (int input-buffer-size)))
         ^"[Lorg.eclipse.jetty.server.ConnectionFactory;" connection-factories
-        (into-array ConnectionFactory [http-connection-factory])
+        (into-array ConnectionFactory
+                    (cond-> [http-connection-factory]
+                      http2c? (conj (HTTP2CServerConnectionFactory. http-conf))
+                      http2? (conj (HTTP2ServerConnectionFactory. http-conf))))
         connectors (-> []
                        (conj (doto (ServerConnector. ^Server server connection-factories)
                                (.setPort port)

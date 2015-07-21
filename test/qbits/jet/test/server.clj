@@ -122,6 +122,22 @@
         (is (= (:status response) 200))
         (is (= (-> response :body async/<!!) "Hello World")))))
 
+  (testing "HTTP2 server"
+    (with-server {:port port :http2? true :ring-handler hello-world}
+      (let [response (async/<!! (http/get client base-url))]
+        (is (= (:status response) 200))
+        (is (.startsWith (get-in response [:headers "content-type"])
+                         "text/plain"))
+        (is (= (async/<!! (:body response)) "Hello World")))))
+
+  (testing "HTTP2c server"
+    (with-server {:port port :http2c? true :ring-handler hello-world}
+      (let [response (async/<!! (http/get client base-url))]
+        (is (= (:status response) 200))
+        (is (.startsWith (get-in response [:headers "content-type"])
+                         "text/plain"))
+        (is (= (async/<!! (:body response)) "Hello World")))))
+
   (testing "setting daemon threads"
     (testing "default (daemon off)"
       (let [server (run-jetty {:port port

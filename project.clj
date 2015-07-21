@@ -1,4 +1,4 @@
-(def jetty-version "9.3.0.v20150612")
+(def jetty-version "9.3.1.v20150714")
 (defproject cc.qbits/jet "0.6.6"
   :description "Jetty9 ring server adapter with WebSocket support"
   :url "https://github.com/mpenet/jet"
@@ -7,6 +7,7 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [org.eclipse.jetty/jetty-server ~jetty-version]
+                 [org.eclipse.jetty.http2/http2-server ~jetty-version]
                  [org.eclipse.jetty.websocket/websocket-server ~jetty-version]
                  [org.eclipse.jetty.websocket/websocket-servlet ~jetty-version]
                  [org.eclipse.jetty.websocket/websocket-client ~jetty-version]
