@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+* Add HTTP2 & HTTP2C support in server, togglable using `:http2?` and
+`:http2c?` options.
+
+* Add pluggable transports to http client
+ex: `(http/client {:transport :http2})`, `(http/client {:transport transport-instance})`
+
 ## 0.6.6
 
 * Avoid triggering init of logging at compile time see #22

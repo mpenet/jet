@@ -6,7 +6,10 @@ Derived from ring.adapter.jetty"
    [clojure.core.async :as async]
    [qbits.jet.websocket :refer :all])
   (:import
+   ;; (org.eclipse.jetty.alpn.server
+   ;;  ALPNServerConnectionFactory)
    (org.eclipse.jetty.server
+    Connector
     Handler
     Server
     Request
@@ -131,6 +134,8 @@ supplied options:
 * `:port` - the port to listen on (defaults to 80)
 * `:host` - the hostname to listen on
 * `:join?` - blocks the thread until server ends (defaults to true)
+* `:http2?` - enable HTTP2 transport
+* `:http2c?` - enable HTTP2C transport (cleartext)
 * `:configurator` - fn that will be passed the server instance before server.start()
 * `:daemon?` - use daemon threads (defaults to false)
 * `:ssl?` - allow connections over HTTPS
@@ -175,28 +180,29 @@ supplied options:
         server (doto (Server. pool)
                  (.addBean (ScheduledExecutorScheduler.)))
         http-conf (http-config options)
-
         http-connection-factory (doto (HttpConnectionFactory. http-conf)
                                   (.setInputBufferSize (int input-buffer-size)))
-        ^"[Lorg.eclipse.jetty.server.ConnectionFactory;" connection-factories
-        (into-array ConnectionFactory
-                    (cond-> [http-connection-factory]
-                      http2c? (conj (HTTP2CServerConnectionFactory. http-conf))
-                      http2? (conj (HTTP2ServerConnectionFactory. http-conf))))
-        connectors (-> []
-                       (conj (doto (ServerConnector. ^Server server connection-factories)
-                               (.setPort port)
+        connectors (cond-> [(doto (ServerConnector.
+                                   ^Server server
+                                   ^"[Lorg.eclipse.jetty.server.ConnectionFactory;"
+                                   (into-array ConnectionFactory
+                                               (cond-> [http-connection-factory]
+                                                 http2c? (conj (HTTP2CServerConnectionFactory. http-conf)))))
+                              (.setPort port)
+                              (.setHost host)
+                              (.setIdleTimeout max-idle-time))]
+                       (or ssl? ssl-port)
+                       (conj (doto (ServerConnector.
+                                    ^Server server
+                                    (ssl-context-factory options)
+                                    ^"[Lorg.eclipse.jetty.server.ConnectionFactory;"
+                                    (into-array ConnectionFactory
+                                                (cond-> [http-connection-factory]
+                                                  http2? (conj (HTTP2ServerConnectionFactory. http-conf)))))
+                               (.setPort ssl-port)
                                (.setHost host)
-                               (.setIdleTimeout max-idle-time)))
-                       (cond-> (or ssl? ssl-port)
-                         (conj (doto (ServerConnector. ^Server server
-                                                       (ssl-context-factory options)
-                                                       connection-factories)
-                                 (.setPort ssl-port)
-                                 (.setHost host)
-                                 (.setIdleTimeout max-idle-time))))
-                       (into-array))]
-    (.setConnectors server connectors)
+                               (.setIdleTimeout max-idle-time))))]
+    (.setConnectors server (into-array Connector connectors))
     (when (or websocket-handler ring-handler)
       (let [hs (HandlerList.)]
         (when websocket-handler
