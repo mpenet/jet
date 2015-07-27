@@ -152,9 +152,9 @@
 
   Object
   (encode-chunk [x]
-    (throw (ex-info "Chunk type no supported by encoder")))
+    (throw (ex-info "Chunk type no supported by encoder" {})))
   (encode-body [x]
-    (throw (ex-info "Body type no supported by encoder")))
+    (throw (ex-info "Body type no supported by encoder" {})))
   (encode-content-type [content-type]
     (encode-content-type (subs (str content-type) 1))))
 
