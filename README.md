@@ -40,6 +40,11 @@ Add this to your dependencies:
 ```clojure
 [cc.qbits/jet "0.6.6"]
 ```
+
+Jetty 9.3+ requires Java 8, you must either make sure you have it on
+your system or you can exclude the jetty version brought in by Jet and
+use a previous one (at your own risk).
+
 ## Examples
 
 ### Vanilla Ring handler
