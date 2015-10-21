@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0-beta1
+
+* use jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.7.0
 
 * Add HTTP2 & HTTP2C support in server, togglable using `:http2?` and
