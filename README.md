@@ -3,8 +3,11 @@
 
 <img src="http://i.imgur.com/gs2v6d8.gif" title="Hosted by imgur.com" align="right"/>
 
-Jet is a jetty9 server + client library for clojure.
-It's a drop in adapter replacement for ring apps.
+Jet is a jetty9 **Server** and **Client** client library for clojure
+(both HTTP and WebSocket).
+
+It's a drop in server adapter replacement for RING apps, and nearly
+identical client api with clj-http.
 
 ## What's in the box?
 
@@ -38,7 +41,7 @@ jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 Add this to your dependencies:
 
 ```clojure
-[cc.qbits/jet "0.7.0-beta1"]
+[cc.qbits/jet "0.7.0"]
 ```
 
 Jetty 9.3+ requires Java 8, you must either make sure you have it on

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+* use latest core async
+
+* the http client now returns request as an async/promise-chan instead of
+a async/chan
+
 ## 0.7.0-beta1
 
 * use jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)

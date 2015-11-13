@@ -267,7 +267,7 @@
          follow-redirects? true
          fold-chunked-response? true}
     :as request-map}]
-  (let [ch (async/chan 1)
+  (let [ch (async/promise-chan)
         body-ch (async/chan 1
                             (if fold-chunked-response?
                               (fold-chunks+decode-xform as)
