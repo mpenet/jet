@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+* use jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.7.0
 
 * use latest core async
