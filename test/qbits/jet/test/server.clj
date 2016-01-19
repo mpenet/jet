@@ -2,6 +2,7 @@
   (:use
    clojure.test)
   (:require
+   ;; [clojure.tools.logging :as log]
    [qbits.jet.server :refer [run-jetty]]
    [qbits.jet.client.websocket :as ws]
    [qbits.jet.client.http :as http]
@@ -12,6 +13,15 @@
    (org.eclipse.jetty.util.thread QueuedThreadPool)
    (org.eclipse.jetty.server Server Request)
    (org.eclipse.jetty.server.handler AbstractHandler)))
+
+;; (defn set-uncaught-ex-handler!
+;;   [f]
+;;   (Thread/setDefaultUncaughtExceptionHandler
+;;    (reify Thread$UncaughtExceptionHandler
+;;      (uncaughtException [_ thread ex]
+;;        (f thread ex)))))
+
+;; (set-uncaught-ex-handler! #(log/info "Uncaught:" %1 %2))
 
 (def port 4347)
 (def base-url (str "http://localhost:" port))
@@ -218,6 +228,15 @@
         (dotimes [i num-chunk]
           (is (= (-> response :body async/<!!) (str i))))
         (is (= (-> response :body async/<!!) nil)))))
+
+
+  (testing "chunked response folded"
+    (with-server {:ring-handler chunked-handler
+                  :port port}
+      (let [response (async/<!! (http/get client base-url))
+            val (apply str (range num-chunk))]
+        (is (= (:status response) 201))
+        (is (= (-> response :body async/<!!) val)))))
 
   (testing "async response"
     (with-server {:ring-handler async-handler

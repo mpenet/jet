@@ -69,16 +69,18 @@
   (fn [reduction-function]
     (let [ba (ByteArrayOutputStream.)]
       (fn
+        ([] (reduction-function))
         ([result]
-         (reduction-function result (decode-body (ByteBuffer/wrap (.toByteArray ba))
-                                          as)))
+         (reduction-function result (decode-body (ByteBuffer/wrap (.toByteArray ba)) as)))
         ([result chunk]
-         (.write ba (byte-buffer->bytes chunk)))))))
+         (.write ba (byte-buffer->bytes chunk))
+         result)))))
 
 (defn decode-chunk-xform
   [as]
   (fn [reduction-function]
     (fn
+      ([] (reduction-function))
       ([result]
        (reduction-function result))
       ([result chunk]
