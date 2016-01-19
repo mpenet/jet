@@ -1,5 +1,5 @@
 (def jetty-version "9.3.7.v20160115")
-(defproject cc.qbits/jet "0.7.2"
+(defproject cc.qbits/jet "0.7.3"
   :description "Jetty9 ring server adapter with WebSocket support"
   :url "https://github.com/mpenet/jet"
   :license {:name "Eclipse Public License"

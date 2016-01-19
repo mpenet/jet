@@ -74,7 +74,7 @@
          (reduction-function result (decode-body (ByteBuffer/wrap (.toByteArray ba)) as)))
         ([result chunk]
          (.write ba (byte-buffer->bytes chunk))
-         result)))))
+         (reduction-function result))))))
 
 (defn decode-chunk-xform
   [as]
