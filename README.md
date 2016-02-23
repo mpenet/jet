@@ -40,9 +40,7 @@ jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 
 Add this to your dependencies:
 
-```clojure
-[cc.qbits/jet "0.7.2"]
-```
+[![Current Version](https://clojars.org/cc.qbits/jet/latest-version.svg)](https://clojars.org/cc.qbits/jet)
 
 Jetty 9.3+ requires Java 8, you must either make sure you have it on
 your system or you can exclude the jetty version brought in by Jet and
