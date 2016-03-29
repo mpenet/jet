@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.4
+
+* upgrade jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.7.2
 
 * fixed chunked response folding bug
