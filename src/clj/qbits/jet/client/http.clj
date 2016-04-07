@@ -328,6 +328,11 @@
                                                            ^HttpFields (.getHeaders response))
                                                    body-ch)))))
 
+    (.onRequestFailure request
+                       (reify Request$FailureListener
+                         (onFailure [_ _ throwable]
+                           (async/put! ch {:error throwable}))))
+
     (.send request
            (reify Response$CompleteListener
              (onComplete [this result]
