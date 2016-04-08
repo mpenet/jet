@@ -41,7 +41,7 @@ jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 Add this to your dependencies:
 
 ```clojure
-[cc.qbits/jet "0.7.4"]
+[cc.qbits/jet "0.7.5"]
 ```
 
 Jetty 9.3+ requires Java 8, you must either make sure you have it on

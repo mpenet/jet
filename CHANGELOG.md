@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.5
+
+* listen for and communicate http client request failures (ex. oom).
+  https://github.com/mpenet/jet/pull/33
+
 ## 0.7.4
 
 * upgrade jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
