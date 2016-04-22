@@ -46,7 +46,8 @@ connection by closing the channel
                           max-binary-message-buffer-size
                           max-text-message-buffer-size
                           subprotocols
-                          daemon?]
+                          daemon?
+                          middleware]
                    :or {in async/chan
                         out async/chan
                         ctrl async/chan}}]]
@@ -84,7 +85,10 @@ connection by closing the channel
 ;; void	setCookieStore(CookieStore cookieStore)
 ;; void	setEventDriverFactory(EventDriverFactory factory)
 ;; void	setMasker(Masker masker)
-;; void	setSessionFactory(SessionFactory sessionFactory)
+    ;; void	setSessionFactory(SessionFactory sessionFactory)
+
+    (when (fn? middleware)
+      (middleware client request))
 
     (.start client)
 
