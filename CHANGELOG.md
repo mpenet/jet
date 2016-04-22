@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.6
+
+* Add subprotocols support in websocket client
+
 ## 0.7.5
 
 * listen for and communicate http client request failures (ex. oom).
