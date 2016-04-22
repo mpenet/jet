@@ -27,7 +27,8 @@
 (def base-url (str "http://localhost:" port))
 (def client (http/client))
 
-(def num-chunk 2048)
+(def num-chunk 20;; 48
+  )
 (def chunk-interval-ms 5)
 
 (defn hello-world [request]
@@ -337,7 +338,8 @@
                          (async/>! out "PING")
                          (when (= "PONG" (async/<! in))
                            (async/close! out)
-                           (deliver p true)))))
+                           (deliver p true))))
+                     {:subprotocols ["permessage-deflate"]})
         (is (deref p 1000 false)))))
 
   (testing "content-type encoding"

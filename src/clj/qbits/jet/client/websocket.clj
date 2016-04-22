@@ -45,6 +45,7 @@ connection by closing the channel
                           max-idle-timeout
                           max-binary-message-buffer-size
                           max-text-message-buffer-size
+                          subprotocols
                           daemon?]
                    :or {in async/chan
                         out async/chan
@@ -53,6 +54,10 @@ connection by closing the channel
   (let [client (WebSocketClient.)
         request (ClientUpgradeRequest.)
         ws (ws/make-websocket (in) (out) (ctrl) handler)]
+
+    (when subprotocols
+      (.setSubProtocols ^ClientUpgradeRequest request
+                        ^"[Ljava.lang.String;" (into-array String subprotocols)))
 
     (when executor
       (.setExecutor client executor))
