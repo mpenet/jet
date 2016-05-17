@@ -67,11 +67,13 @@
 
 (defn fold-chunks+decode-xform [as]
   (fn [reduction-function]
-    (let [ba (ByteArrayOutputStream.)]
+    (let [ba (ByteArrayOutputStream.)
+          state (atom ::open)]
       (fn
         ([] (reduction-function))
         ([result]
-         (reduction-function result (decode-body (ByteBuffer/wrap (.toByteArray ba)) as)))
+         (when (compare-and-set! state ::open ::closed)
+           (reduction-function result (decode-body (ByteBuffer/wrap (.toByteArray ba)) as))))
         ([result chunk]
          (.write ba (byte-buffer->bytes chunk))
          (reduction-function result))))))
