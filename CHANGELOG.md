@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.7
+
+* http client, body folding transducer can yield multiple times the
+  same final value when take! is called on the underling channel
+
 ## 0.7.6
 
 * Add subprotocols support in websocket client
