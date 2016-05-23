@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.8
+
+* upgrade jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
 ## 0.7.7
 
 * http client, body folding transducer can yield multiple times the
