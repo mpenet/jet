@@ -132,9 +132,9 @@ Derived from ring.adapter.jetty"
   [pc]
   (cond
     (instance? HttpCompliance pc) pc
-    (= pc :parser-legacy)         HttpCompliance/LEGACY
-    (= pc :parser-rfc2616)        HttpCompliance/RFC2616
-    (= pc :parser-rfc7230)        HttpCompliance/RFC7230
+    (= pc :legacy)                HttpCompliance/LEGACY
+    (= pc :rfc2616)               HttpCompliance/RFC2616
+    (= pc :rfc7230)               HttpCompliance/RFC7230
     (nil? pc)                     HttpCompliance/RFC7230
     :else                         (throw (ex-info "Illegal Http Parser" {}))))
 
