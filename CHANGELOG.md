@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.9
+
+* server: allow specifying parser compliance #40
+
+
 ## 0.7.8
 
 * upgrade jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
