@@ -18,6 +18,8 @@ Derived from ring.adapter.jetty"
     HttpConnectionFactory
     SslConnectionFactory
     ConnectionFactory)
+   (org.eclipse.jetty.http
+    HttpCompliance)
    (org.eclipse.jetty.http2.server
     HTTP2ServerConnectionFactory
     HTTP2CServerConnectionFactory)
@@ -126,6 +128,16 @@ Derived from ring.adapter.jetty"
       nil)
     context))
 
+(defn ^HttpCompliance any->parser-compliance
+  [pc]
+  (cond
+    (instance? HttpCompliance pc) pc
+    (= pc :parser-legacy)         HttpCompliance/LEGACY
+    (= pc :parser-rfc2616)        HttpCompliance/RFC2616
+    (= pc :parser-rfc7230)        HttpCompliance/RFC7230
+    (nil? pc)                     HttpCompliance/RFC7230
+    :else                         (throw (ex-info "Illegal Http Parser" {}))))
+
 (defn ^Server run-jetty
   "Start a Jetty webserver to serve the given handler according to the
 supplied options:
@@ -164,7 +176,7 @@ supplied options:
     * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`"
   [{:as options
     :keys [websocket-handler ring-handler host port max-threads min-threads
-           input-buffer-size max-idle-time ssl-port configurator
+           input-buffer-size max-idle-time ssl-port configurator parser-compliance
            daemon? ssl? join? http2? http2c?]
     :or {port 80
          max-threads 50
@@ -173,6 +185,7 @@ supplied options:
          max-idle-time 200000
          ssl? false
          join? true
+         parser-compliance HttpCompliance/LEGACY
          input-buffer-size 8192}}]
   (let [pool (doto (QueuedThreadPool. (int max-threads)
                                       (int min-threads))
@@ -181,6 +194,7 @@ supplied options:
                  (.addBean (ScheduledExecutorScheduler.)))
         http-conf (http-config options)
         http-connection-factory (doto (HttpConnectionFactory. http-conf)
+                                  (.setHttpCompliance (any->parser-compliance parser-compliance))
                                   (.setInputBufferSize (int input-buffer-size)))
         connectors (cond-> [(doto (ServerConnector.
                                    ^Server server
