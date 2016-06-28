@@ -127,17 +127,19 @@ An example with a little PING/PONG between client and server:
 
 ```clojure
 (use 'qbits.jet.server)
+(require '[clojure.core.async :as async])
 
 ;; Simple ping/pong server, will wait for PING, reply PONG and close connection
 (run-jetty
   {:port 8013
+   :join? false
    :websocket-handler
     (fn [{:keys [in out ctrl ws]
           :as opts}]
         (async/go
           (when (= "PING" (async/<! in))
             (async/>! out "PONG")
-            (async/close! out))))}})
+            (async/close! out))))})
 ```
 
 The websocket client is used the same way
@@ -152,7 +154,7 @@ The websocket client is used the same way
             (async/go
               (async/>! out "PING")
               (when (= "PONG" (async/<! in))
-                (async/close! out))))))
+                (async/close! out)))))
 ```
 
 If you close the :out channel, the socket will be closed, this is true
