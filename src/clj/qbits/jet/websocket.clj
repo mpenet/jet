@@ -61,8 +61,6 @@
   ;; (-send! [this ws] ()
   )
 
-(defrecord WebSocketBinaryFrame [payload offset len])
-
 (deftype WebSocket
     [^ManyToManyChannel in
      ^ManyToManyChannel out
@@ -118,7 +116,7 @@
     (a/put! in message #(backpressure! this %)))
 
   (onWebSocketBinary [this payload offset len]
-    (a/put! in (WebSocketBinaryFrame. payload offset len)
+    (a/put! in (ByteBuffer/wrap payload offset len)
             #(backpressure! this %)))
 
   BackPressure
