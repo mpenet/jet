@@ -341,6 +341,24 @@
                      {:subprotocols ["permessage-deflate"]})
         (is (deref p 1000 false)))))
 
+  (testing "WebSocket sending-bytes"
+    (let [p (promise)
+          utf8 java.nio.charset.StandardCharsets/UTF_8]
+      (with-server {:port port
+                    :websocket-handler
+                    (fn [{:keys [in out ctrl] :as request}]
+                      (async/go
+                        (when (= "PING" (String. (.array (async/<! in)) utf8))
+                          (async/>! out (.getBytes "PONG" utf8)))))}
+        (ws/connect! (str "ws://0.0.0.0:" port "/app?foo=bar")
+                     (fn [{:keys [in out ctrl]}]
+                       (async/go
+                         (async/>! out (.getBytes "PING" utf8))
+                         (when (= "PONG" (String. (.array (async/<! in)) utf8))
+                           (async/close! out)
+                           (deliver p true)))))
+        (is (deref p 1000 false)))))
+
   (testing "content-type encoding"
     (is (= "Content-Type: application/json" (http/encode-content-type :application/json)))
     (is (= "Content-Type: application/json; charset=UTF-8" (http/encode-content-type [:application/json "UTF-8"])))
