@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.10
+
+* return ByteBuffer instance in WS Binary instead of our own record type wrapper
+
 ## 0.7.9
 
 * server: allow specifying parser compliance #40
