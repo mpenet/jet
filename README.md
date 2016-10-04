@@ -110,7 +110,9 @@ client disconnects the channel closes as well.
 
 
 In the options the `:websocket-handler` is the root handler for all
-websocket connections.
+websocket connections. You can have both `:ring-handler` and
+`:websocket-handler` entries defined in a single `run-jetty` call,
+they are just kept separate (subject to change).
 
 The websocket handlers receive a ring request map + 3 core.async channels
 and the underlying WebSocketAdapter instance for potential advanced uses.
