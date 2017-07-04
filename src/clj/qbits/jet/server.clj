@@ -6,7 +6,10 @@ Derived from ring.adapter.jetty"
    [clojure.core.async :as async]
    [qbits.jet.websocket :refer :all])
   (:import
+   ;; (org.eclipse.jetty.alpn.server
+   ;;  ALPNServerConnectionFactory)
    (org.eclipse.jetty.server
+    Connector
     Handler
     Server
     Request
@@ -15,6 +18,11 @@ Derived from ring.adapter.jetty"
     HttpConnectionFactory
     SslConnectionFactory
     ConnectionFactory)
+   (org.eclipse.jetty.http
+    HttpCompliance)
+   (org.eclipse.jetty.http2.server
+    HTTP2ServerConnectionFactory
+    HTTP2CServerConnectionFactory)
    (org.eclipse.jetty.server.handler
     HandlerCollection
     AbstractHandler
@@ -41,14 +49,16 @@ Derived from ring.adapter.jetty"
    (qbits.jet.websocket WebSocket)))
 
 (defn- make-ws-creator
-  [handler {:keys [in out ctrl]
+  [handler {:keys [in out ctrl websocket-acceptor]
             :or {in async/chan
                  out async/chan
-                 ctrl async/chan}
+                 ctrl async/chan
+                 websocket-acceptor (constantly true)}
             :as options}]
   (reify WebSocketCreator
-    (createWebSocket [this _ _]
-      (make-websocket (in) (out) (ctrl) handler))))
+    (createWebSocket [this request response]
+      (if (websocket-acceptor request response)
+        (make-websocket (in) (out) (ctrl) handler)))))
 
 (defn- make-ws-handler
   "Returns a Jetty websocket handler"
@@ -109,7 +119,9 @@ Derived from ring.adapter.jetty"
     (when keystore-type
       (.setKeyStoreType context keystore-type))
     (when truststore
-      (.setTrustStore context ^java.security.KeyStore truststore))
+      (if (string? truststore)
+        (.setTrustStorePath context truststore)
+        (.setTrustStore context ^java.security.KeyStore truststore)))
     (when trust-password
       (.setTrustStorePassword context trust-password))
     (when truststore-type
@@ -120,6 +132,16 @@ Derived from ring.adapter.jetty"
       nil)
     context))
 
+(defn ^HttpCompliance any->parser-compliance
+  [pc]
+  (cond
+    (instance? HttpCompliance pc) pc
+    (= pc :legacy)                HttpCompliance/LEGACY
+    (= pc :rfc2616)               HttpCompliance/RFC2616
+    (= pc :rfc7230)               HttpCompliance/RFC7230
+    (nil? pc)                     HttpCompliance/RFC7230
+    :else                         (throw (ex-info "Illegal Http Parser" {}))))
+
 (defn ^Server run-jetty
   "Start a Jetty webserver to serve the given handler according to the
 supplied options:
@@ -128,6 +150,8 @@ supplied options:
 * `:port` - the port to listen on (defaults to 80)
 * `:host` - the hostname to listen on
 * `:join?` - blocks the thread until server ends (defaults to true)
+* `:http2?` - enable HTTP2 transport
+* `:http2c?` - enable HTTP2C transport (cleartext)
 * `:configurator` - fn that will be passed the server instance before server.start()
 * `:daemon?` - use daemon threads (defaults to false)
 * `:ssl?` - allow connections over HTTPS
@@ -153,42 +177,60 @@ supplied options:
 
     * `:in`: core.async chan that receives data sent by the client
     * `:out`: core async chan you can use to send data to client
-    * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`"
+    * `:ctrl`: core.async chan that received control messages such as: `[::error e]`, `[::close code reason]`
+* `:websocket-acceptor`: a function called with (request response) that returns a boolean whether to further process the
+                         websocket request. If the function returns false, it is responsible for committing a response.
+                         If the function return true, a websocket is created and the `websocket-handler` is eventually
+                         called."
   [{:as options
     :keys [websocket-handler ring-handler host port max-threads min-threads
-           input-buffer-size max-idle-time ssl-port configurator
-           daemon? ssl? join?]
-    :or {port 80
-         max-threads 50
+           input-buffer-size max-idle-time ssl-port configurator parser-compliance
+           daemon? ssl? join? http2? http2c?]
+    :or {max-threads 50
          min-threads 8
          daemon? false
          max-idle-time 200000
          ssl? false
          join? true
+         parser-compliance HttpCompliance/LEGACY
          input-buffer-size 8192}}]
-  (let [pool (doto (QueuedThreadPool. (int max-threads)
+  (let [ssl? (some? (or ssl? ssl-port))
+        pool (doto (QueuedThreadPool. (int max-threads)
                                       (int min-threads))
                (.setDaemon daemon?))
         server (doto (Server. pool)
                  (.addBean (ScheduledExecutorScheduler.)))
-        http-connection-factory (doto (HttpConnectionFactory. (http-config options))
+        http-conf (http-config options)
+        http-connection-factory (doto (HttpConnectionFactory. http-conf)
+                                  (.setHttpCompliance (any->parser-compliance parser-compliance))
                                   (.setInputBufferSize (int input-buffer-size)))
-        ^"[Lorg.eclipse.jetty.server.ConnectionFactory;" connection-factories
-        (into-array ConnectionFactory [http-connection-factory])
-        connectors (-> []
-                       (conj (doto (ServerConnector. ^Server server connection-factories)
-                               (.setPort port)
-                               (.setHost host)
-                               (.setIdleTimeout max-idle-time)))
-                       (cond-> (or ssl? ssl-port)
-                         (conj (doto (ServerConnector. ^Server server
-                                                       (ssl-context-factory options)
-                                                       connection-factories)
-                                 (.setPort ssl-port)
-                                 (.setHost host)
-                                 (.setIdleTimeout max-idle-time))))
-                       (into-array))]
-    (.setConnectors server connectors)
+        connectors (cond-> []
+                           ;; use HTTP if ssl is disabled or ssl is enabled and ssl-port is explicitly provided
+                           (or (not ssl?)
+                               (not (and ssl? ssl-port)))
+                           (conj (doto (ServerConnector.
+                                         ^Server server
+                                         ^"[Lorg.eclipse.jetty.server.ConnectionFactory;"
+                                         (into-array ConnectionFactory
+                                                     (cond-> [http-connection-factory]
+                                                             http2c? (conj (HTTP2CServerConnectionFactory. http-conf)))))
+                                   (.setPort (or port 80))
+                                   (.setHost host)
+                                   (.setIdleTimeout max-idle-time)))
+                           ssl?
+                           (conj (doto (ServerConnector.
+                                         ^Server server
+                                         (ssl-context-factory options)
+                                         ^"[Lorg.eclipse.jetty.server.ConnectionFactory;"
+                                         (into-array ConnectionFactory
+                                                     (cond-> [http-connection-factory]
+                                                             http2? (conj (HTTP2ServerConnectionFactory. http-conf)))))
+                                   (.setPort (or ssl-port port 443))
+                                   (.setHost host)
+                                   (.setIdleTimeout max-idle-time))))]
+    (when (empty? connectors)
+      (throw (IllegalStateException. "No connectors found! HTTP port or SSL must be configured!")))
+    (.setConnectors server (into-array Connector connectors))
     (when (or websocket-handler ring-handler)
       (let [hs (HandlerList.)]
         (when websocket-handler

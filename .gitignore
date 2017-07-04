@@ -11,3 +11,5 @@ pom.xml*
 .lein-failures
 .lein-plugins
 /.nrepl-port
+.idea/
+*.iml

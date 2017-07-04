@@ -4,16 +4,14 @@
    [clojure.core.async :as async])
   (:import
    (java.net URI)
-   (org.eclipse.jetty.websocket.client
-    WebSocketClient
-    ClientUpgradeRequest)
+   (org.eclipse.jetty.websocket.client ClientUpgradeRequest)
    (org.eclipse.jetty.http HttpField)
    (qbits.jet.websocket WebSocket)))
 
 (defrecord Connection [client request socket])
 
 (defn connect!
-  "Takes an url a handler, an option map and returns a websocket
+  "Takes a WebSocketClient, a url, a handler, an option map and returns a websocket
 client.
 
 The option map can take the following keys:
@@ -36,35 +34,41 @@ connection by closing the channel
 * `:ctrl` - core.asyn chan that received control messages such as:
 ``[::error e]`, `[::close reason]`
 * `:ws` - qbits.jet.websocket/WebSocket instance"
-  [url handler & [{:as options
-                   :keys [in out ctrl
-                          executor
-                          ssl-context-factory
-                          async-write-timeout
-                          connect-timeout
-                          max-idle-timeout
-                          max-binary-message-buffer-size
-                          max-text-message-buffer-size
-                          daemon?]
-                   :or {in async/chan
-                        out async/chan
-                        ctrl async/chan}}]]
+  [client url handler & [{:as options
+                          :keys [in out ctrl
+                                 executor
+                                 ssl-context-factory
+                                 async-write-timeout
+                                 connect-timeout
+                                 max-idle-timeout
+                                 max-binary-message-buffer-size
+                                 max-text-message-buffer-size
+                                 subprotocols
+                                 daemon?
+                                 middleware]
+                          :or {in async/chan
+                               out async/chan
+                               ctrl async/chan}}]]
 
-  (let [client (WebSocketClient.)
-        request (ClientUpgradeRequest.)
+  (let [request (ClientUpgradeRequest.)
         ws (ws/make-websocket (in) (out) (ctrl) handler)]
+
+    (when subprotocols
+      (.setSubProtocols ^ClientUpgradeRequest request
+                        ^"[Ljava.lang.String;" (into-array String subprotocols)))
 
     (when executor
       (.setExecutor client executor))
 
+    (when max-idle-timeout
+      (.setMaxIdleTimeout client (long max-idle-timeout)))
+
+    ;; async timeout has an assertion related with idle timeout, it must be set after setting max idle timeout
     (when async-write-timeout
       (.setAsyncWriteTimeout client (long async-write-timeout)))
 
     (when connect-timeout
       (.setConnectTimeout client (long connect-timeout)))
-
-    (when max-idle-timeout
-      (.setMaxIdleTimeout client (long max-idle-timeout)))
 
     (when max-binary-message-buffer-size
       (.setMaxBinaryMessageBufferSize client (int max-binary-message-buffer-size)))
@@ -79,9 +83,12 @@ connection by closing the channel
 ;; void	setCookieStore(CookieStore cookieStore)
 ;; void	setEventDriverFactory(EventDriverFactory factory)
 ;; void	setMasker(Masker masker)
-;; void	setSessionFactory(SessionFactory sessionFactory)
+    ;; void	setSessionFactory(SessionFactory sessionFactory)
+
+    (when (fn? middleware)
+      (middleware client request))
 
     (.start client)
 
-    (.connect client ws (URI/create url))
+    (.connect client ws (URI/create url) request)
     (Connection. client request ws)))

@@ -3,8 +3,11 @@
 
 <img src="http://i.imgur.com/gs2v6d8.gif" title="Hosted by imgur.com" align="right"/>
 
-Jet is a jetty9 server + client library for clojure.
-It's a drop in adapter replacement for ring apps.
+Jet is a jetty9 **Server** and **Client** client library for clojure
+(both HTTP and WebSocket).
+
+It's a drop in server adapter replacement for RING apps, and nearly
+identical client api with clj-http.
 
 ## What's in the box?
 
@@ -38,8 +41,13 @@ jet is [available on Clojars](https://clojars.org/cc.qbits/jet).
 Add this to your dependencies:
 
 ```clojure
-[cc.qbits/jet "0.6.4"]
+[cc.qbits/jet "0.7.10"]
 ```
+
+Jetty 9.3+ requires Java 8, you must either make sure you have it on
+your system or you can exclude the jetty version brought in by Jet and
+use a previous one (at your own risk).
+
 ## Examples
 
 ### Vanilla Ring handler
@@ -119,17 +127,19 @@ An example with a little PING/PONG between client and server:
 
 ```clojure
 (use 'qbits.jet.server)
+(require '[clojure.core.async :as async])
 
 ;; Simple ping/pong server, will wait for PING, reply PONG and close connection
 (run-jetty
   {:port 8013
+   :join? false
    :websocket-handler
     (fn [{:keys [in out ctrl ws]
           :as opts}]
         (async/go
           (when (= "PING" (async/<! in))
             (async/>! out "PONG")
-            (async/close! out))))}})
+            (async/close! out))))})
 ```
 
 The websocket client is used the same way
@@ -144,7 +154,7 @@ The websocket client is used the same way
             (async/go
               (async/>! out "PING")
               (when (= "PONG" (async/<! in))
-                (async/close! out))))))
+                (async/close! out)))))
 ```
 
 If you close the :out channel, the socket will be closed, this is true

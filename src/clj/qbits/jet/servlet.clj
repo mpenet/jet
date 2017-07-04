@@ -9,7 +9,8 @@
     File
     InputStream
     FileInputStream
-    OutputStream)
+    OutputStream
+    OutputStreamWriter)
    (javax.servlet
     AsyncContext
     AsyncListener)
@@ -97,31 +98,37 @@
   (.flushBuffer servlet-response))
 
 (defn- response->output-stream
-  ^OutputStream
+  ^OutputStreamWriter
   [^Response servlet-response]
   (-> servlet-response .getOutputStream))
 
 (defprotocol OutputStreamWritable
-  (-write-stream! [x stream-writer]))
+  (-write-stream! [x output-stream]))
 
 (extend-protocol OutputStreamWritable
   (Class/forName "[B") ; Byte array
-  (-write-stream! [bytes ^OutputStream sw]
-    (.write sw bytes)
-    (.flush sw))
+  (-write-stream! [b ^OutputStream os]
+    (.write os ^bytes b)
+    (.flush os))
 
   String
-  (-write-stream! [s ^OutputStream sw]
-    (.write sw (.getBytes s))
-    (.flush sw))
+  (-write-stream! [s ^OutputStream os]
+    (.write os (.getBytes s))
+    (.flush os))
 
   Number
-  (-write-stream! [n sw]
-    (-write-stream! (str n) sw))
+  (-write-stream! [n os]
+    (-write-stream! (str n) os))
 
   InputStream
-  (-write-stream! [input-stream ^OutputStream sw]
-    (io/copy input-stream sw)))
+  (-write-stream! [input-stream ^OutputStream os]
+    (io/copy input-stream os)
+    (.flush os))
+
+  clojure.lang.Fn
+  (-write-stream! [f ^OutputStream output-stream]
+    (f output-stream)
+    (.flush output-stream)))
 
 (defn write-stream!
   [stream x request-map]
@@ -263,9 +270,9 @@
       (set-body! servlet-response request-map body)))
 
   Object
-  (-update-response [x _ _ _]
+  (-update-response [x _]
     (throw-invalid-response! x))
 
   nil
-  (-update-response [x _ _ _]
+  (-update-response [x _]
     (throw-invalid-response! x)))

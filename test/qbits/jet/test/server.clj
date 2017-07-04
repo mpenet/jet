@@ -2,6 +2,7 @@
   (:use
    clojure.test)
   (:require
+   ;; [clojure.tools.logging :as log]
    [qbits.jet.server :refer [run-jetty]]
    [qbits.jet.client.websocket :as ws]
    [qbits.jet.client.http :as http]
@@ -9,9 +10,19 @@
    [ring.middleware.params :as ring-params]
    [ring.middleware.keyword-params :as ring-kw-params])
   (:import
-   (org.eclipse.jetty.util.thread QueuedThreadPool)
-   (org.eclipse.jetty.server Server Request)
-   (org.eclipse.jetty.server.handler AbstractHandler)))
+    (org.eclipse.jetty.util.thread QueuedThreadPool)
+    (org.eclipse.jetty.server Server Request)
+    (org.eclipse.jetty.server.handler AbstractHandler)
+    (org.eclipse.jetty.websocket.client WebSocketClient)))
+
+;; (defn set-uncaught-ex-handler!
+;;   [f]
+;;   (Thread/setDefaultUncaughtExceptionHandler
+;;    (reify Thread$UncaughtExceptionHandler
+;;      (uncaughtException [_ thread ex]
+;;        (f thread ex)))))
+
+;; (set-uncaught-ex-handler! #(log/info "Uncaught:" %1 %2))
 
 (def port 4347)
 (def base-url (str "http://localhost:" port))
@@ -39,6 +50,11 @@
   {:status 200
    :headers {"request-map" (str (dissoc request :body :ctrl :servlet-request))}
    :body (:body request)})
+
+(defn json-handler [content-type]
+  {:status  200
+   :headers {"Content-Type" "application/json"}
+   :body    "{\"foo\": 1}"})
 
 (defn async-handler [request]
   (let [ch (async/chan)]
@@ -116,6 +132,22 @@
       (let [response (async/<!! (http/get client "https://localhost:4348" {:insecure? true}))]
         (is (= (:status response) 200))
         (is (= (-> response :body async/<!!) "Hello World")))))
+
+  (testing "HTTP2 server"
+    (with-server {:port port :http2? true :ring-handler hello-world}
+      (let [response (async/<!! (http/get client base-url))]
+        (is (= (:status response) 200))
+        (is (.startsWith (get-in response [:headers "content-type"])
+                         "text/plain"))
+        (is (= (async/<!! (:body response)) "Hello World")))))
+
+  (testing "HTTP2c server"
+    (with-server {:port port :http2c? true :ring-handler hello-world}
+      (let [response (async/<!! (http/get client base-url))]
+        (is (= (:status response) 200))
+        (is (.startsWith (get-in response [:headers "content-type"])
+                         "text/plain"))
+        (is (= (async/<!! (:body response)) "Hello World")))))
 
   (testing "setting daemon threads"
     (testing "default (daemon off)"
@@ -198,6 +230,15 @@
           (is (= (-> response :body async/<!!) (str i))))
         (is (= (-> response :body async/<!!) nil)))))
 
+
+  (testing "chunked response folded"
+    (with-server {:ring-handler chunked-handler
+                  :port port}
+      (let [response (async/<!! (http/get client base-url))
+            val (apply str (range num-chunk))]
+        (is (= (:status response) 201))
+        (is (= (-> response :body async/<!!) val)))))
+
   (testing "async response"
     (with-server {:ring-handler async-handler
                   :port port}
@@ -250,12 +291,12 @@
         (is (= :trace (:request-method request-map))))))
 
 
-  (testing "HTTP request :as"
-    (is (= "4" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json})
-                      async/<!! :body async/<!! :id)))
-
-    (is (= "4" (-> (http/get client "http://graph.facebook.com/zuck" {:as :json-str})
-                      async/<!! :body async/<!! (get "id")))))
+  (testing "HTTP request :as :json/:json-str"
+    (with-server {:port port :ring-handler json-handler}
+      (is (= 1 (-> (http/get client base-url {:as :json})
+                   async/<!! :body async/<!! :foo)))
+      (is (= 1 (-> (http/get client base-url {:as :json-str})
+                   async/<!! :body async/<!! (get "foo"))))))
 
   (testing "cookies"
     (with-server {:ring-handler echo-handler :port port}
@@ -291,11 +332,32 @@
                       (async/go
                         (when (= "PING" (async/<! in))
                           (async/>! out "PONG"))))}
-        (ws/connect! (str "ws://0.0.0.0:" port "/app?foo=bar")
+        (ws/connect! (WebSocketClient.)
+                     (str "ws://0.0.0.0:" port "/app?foo=bar")
                      (fn [{:keys [in out ctrl]}]
                        (async/go
                          (async/>! out "PING")
                          (when (= "PONG" (async/<! in))
+                           (async/close! out)
+                           (deliver p true))))
+                     {:subprotocols ["permessage-deflate"]})
+        (is (deref p 1000 false)))))
+
+  (testing "WebSocket sending-bytes"
+    (let [p (promise)
+          utf8 java.nio.charset.StandardCharsets/UTF_8]
+      (with-server {:port port
+                    :websocket-handler
+                    (fn [{:keys [in out ctrl] :as request}]
+                      (async/go
+                        (when (= "PING" (String. (.array (async/<! in)) utf8))
+                          (async/>! out (.getBytes "PONG" utf8)))))}
+        (ws/connect! (WebSocketClient.)
+                     (str "ws://0.0.0.0:" port "/app?foo=bar")
+                     (fn [{:keys [in out ctrl]}]
+                       (async/go
+                         (async/>! out (.getBytes "PING" utf8))
+                         (when (= "PONG" (String. (.array (async/<! in)) utf8))
                            (async/close! out)
                            (deliver p true)))))
         (is (deref p 1000 false)))))

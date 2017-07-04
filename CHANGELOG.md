@@ -1,5 +1,83 @@
 # Changelog
 
+## 0.7.10
+
+* return ByteBuffer instance in WS Binary instead of our own record type wrapper
+
+## 0.7.9
+
+* server: allow specifying parser compliance #40
+
+
+## 0.7.8
+
+* upgrade jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
+## 0.7.7
+
+* http client, body folding transducer can yield multiple times the
+  same final value when take! is called on the underling channel
+
+## 0.7.6
+
+* Add subprotocols support in websocket client
+
+## 0.7.5
+
+* listen for and communicate http client request failures (ex. oom).
+  https://github.com/mpenet/jet/pull/33
+
+## 0.7.4
+
+* upgrade jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
+## 0.7.2
+
+* fixed chunked response folding bug
+
+* upgrade jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
+## 0.7.1
+
+* use jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
+## 0.7.0
+
+* use latest core async
+
+* the http client now returns request as an async/promise-chan instead of
+a async/chan
+
+## 0.7.0-beta1
+
+* use jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
+## 0.7.0
+
+* Add HTTP2 & HTTP2C support in server, togglable using `:http2?` and
+`:http2c?` options.
+
+* Add pluggable transports to http client
+ex: `(http/client {:transport :http2})`, `(http/client {:transport transport-instance})`
+
+## 0.6.6
+
+* Avoid triggering init of logging at compile time see #22
+
+* Kill reflection introduced in 0.6.5
+
+* Bump clojure dependency to 1.7.0
+
+## 0.6.5
+
+* Allow more options for streaming, see https://github.com/mpenet/jet/pull/21
+
+* fix tests
+
+* use jetty-* 9.3.* [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
+
+!! **Breaking** jetty 9.3.0 requires java8
+
 ## 0.6.4
 
 * use jetty-* 9.2.11 [changelog](https://github.com/eclipse/jetty.project/blob/master/VERSION.txt)
